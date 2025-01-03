@@ -1,0 +1,14 @@
+# Folders
+build/**
+res/
+include/
+lib/
+.cache/
+
+# Files
+*.exe
+*.dll
+*.o
+.DS_Store
+*.obj
+*.json

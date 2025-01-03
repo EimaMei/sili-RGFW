@@ -4,7 +4,7 @@ AR = ar
 OUTPUT = build
 NAME = sili
 
-GNU_FLAGS = -std=c99 -O3 -Wall -Wextra -Wpedantic \
+GNU_FLAGS = -std=c99 -Wall -Wextra -Wpedantic \
 	-Wconversion \
 	-Wshadow -Wpointer-arith -Wstrict-prototypes -Wmissing-prototypes \
 	-Wvla -Wcast-align -Wcast-align=strict \
@@ -120,8 +120,8 @@ clean:
 	rm $(OUTPUT)/**
 
 
-# Compile each time the main file or `sili.h` is changed.
-$(EXE): $(SRC) sili.h sigar.h
+# Compile each time the main file, sili.h or RGFW.h is changed.
+$(EXE): $(SRC) sili.h RGFW.h
 	$(CC) $(FLAGS) $(SRC) $(INCLUDES) $(LIBS) $(CC_OUT)"$@"
 
 # Compiles and runs every example.

@@ -1,4 +1,9 @@
 /*
+ * THIS VERSION OF RGFW IS BASED ON THE 'baeaddd' COMMIT (2025 January 1st version).
+*/
+
+
+/*
 *
 *	RGFW 1.2-dev
 *
@@ -310,11 +315,53 @@ extern "C" {
 	#define RGFW_UNUSED(x) SI_UNUSED(x)
 #endif
 
+
+/* TODO(EimaMei): Later on this should be probably moved to somewhere else when
+ * a more standard and concise RGFW style is present. */
+typedef RGFW_ENUM(i32, SGFW_error) {
+	/* Invalid value.*/
+	SGFW_errorInvalid = siErrorSystem_Invalid,
+	/* Invalid window handle was passed. */
+	SGFW_errorWindow = SI_ERROR_SYSTEM_END,
+
+	/* An OS-specific error occurred. */
+	SGFW_errorPlatform,
+#ifdef RGFW_X11
+	/* A bad X11 request was sent (internal error). */
+	SGFW_errorXorgRequest,
+	/* Invalid Atom. */
+	SGFW_errorXorgAtom,
+	/* */
+	SGFW_errorXorgCursor,
+	/* */
+	SGFW_errorXorgMatch,
+	/* */
+	SGFW_errorXorgPixmap,
+#endif
+
+	SGFW__errorEnd,
+	/* Total amount of valid errors. */
+	SGFW_errorLength = SGFW__errorEnd - SI_ERROR_SYSTEM_END,
+};
+
+#define SGFW_CHECK_EX(condition, code, param) \
+	SI_ERROR_CHECK_EX_RET(condition, code, SGFW_errorLog, param)
+
+/* TODO */
+RGFWDEF siString SGFW_errorName(SGFW_error error);
+
+/* TODO */
+RGFWDEF SGFW_error SGFW_errorGet(i32 error);
+
+/* TODO */
+RGFWDEF SI_ERROR_PROC(SGFW_errorLog);
+
+
+
 #ifdef RGFW_WIN95 /* for windows 95 testing (not that it really works) */
 	#define RGFW_NO_MONITOR
 	#define RGFW_NO_PASSTHROUGH
 #endif
-
 
 #ifndef RGFW_TRUE
 	#define RGFW_TRUE  true
@@ -615,6 +662,7 @@ typedef struct RGFW_window_src {
 
 
 typedef struct RGFW_window {
+	siAllocator alloc; /*!< allocator */
 	RGFW_window_src src; /*!< src window data */
 
 #if defined(RGFW_OSMESA) || defined(RGFW_BUFFER)
@@ -746,14 +794,14 @@ RGFWDEF void RGFW_window_setName(RGFW_window* win,
 	char* name
 );
 
-RGFWDEF void RGFW_window_setIcon(RGFW_window* win, /*!< source window */
+RGFWDEF b32 RGFW_window_setIcon(RGFW_window* win, /*!< source window */
 	u8* icon /*!< icon bitmap */,
 	RGFW_area a /*!< width and height of the bitmap*/,
 	i32 channels /*!< how many channels the bitmap has (rgb : 3, rgba : 4) */
 ); /*!< image resized by default */
 
-/*!< sets mouse to bitmap (very simular to RGFW_window_setIcon), image NOT resized by default*/
-RGFWDEF void RGFW_window_setMouse(RGFW_window* win, u8* image, RGFW_area a, i32 channels);
+/*!< sets mouse to bitmap (very similar to RGFW_window_setIcon), image NOT resized by default*/
+RGFWDEF b32 RGFW_window_setMouse(RGFW_window* win, u8* icon, RGFW_area a, i32 channels);
 
 /*!< sets the mouse to a standard API cursor (based on RGFW_MOUSE, as seen at the end of the RGFW_HEADER part of this file) */
 RGFWDEF	void RGFW_window_setMouseStandard(RGFW_window* win, u8 mouse);
@@ -1539,6 +1587,7 @@ RGFWDEF RGFW_window* RGFW_window_basic_init(RGFW_rect rect, u16 args, siAllocato
 RGFW_window* RGFW_window_basic_init(RGFW_rect rect, u16 args, siAllocator alloc) {
 	SI_ASSERT_NOT_NEG(rect.width);
 	SI_ASSERT_NOT_NEG(rect.height);
+
 	RGFW_window* win = si_allocItem(alloc, RGFW_window);
 
 	/* clear out dnd info */
@@ -1554,7 +1603,7 @@ RGFW_window* RGFW_window_basic_init(RGFW_rect rect, u16 args, siAllocator alloc)
 		RGFW_area screenR = RGFW_getScreenSize();
 	#else
 		win->src.display = XOpenDisplay(NULL);
-		SI_ASSERT_NOT_NULL(win->src.display);
+		SI_ASSERT_NOT_NIL(win->src.display);
 
 		Screen* scrn = DefaultScreenOfDisplay(win->src.display);
 		RGFW_area screenR = RGFW_AREA(scrn->width, scrn->height);
@@ -1564,7 +1613,7 @@ RGFW_window* RGFW_window_basic_init(RGFW_rect rect, u16 args, siAllocator alloc)
 	if (args & RGFW_FULLSCREEN)
 		rect = RGFW_RECT(0, 0, screenR.width, screenR.height);
 
-	/* set and init the new window's data */
+	win->alloc = alloc;
 	win->r = rect;
 	win->event.inFocus = 1;
 	win->event.droppedFilesCount = 0;
@@ -1699,7 +1748,7 @@ RGFWDEF void RGFW_captureCursor(RGFW_window* win, RGFW_rect);
 RGFWDEF void RGFW_releaseCursor(RGFW_window* win);
 
 void RGFW_window_mouseHold(RGFW_window* win, RGFW_area area) {
-	SI_ASSERT_NOT_NULL(win);
+	SI_ASSERT_NOT_NIL(win);
 	if ((win->_winArgs & RGFW_HOLD_MOUSE))
 		return;
 
@@ -1721,7 +1770,7 @@ void RGFW_window_mouseUnhold(RGFW_window* win) {
 }
 
 u32 RGFW_window_checkFPS(RGFW_window* win, u32 fpsCap) {
-	SI_ASSERT_NOT_NULL(win);
+	SI_ASSERT_NOT_NIL(win);
 	u64 deltaTime = RGFW_getTimeNS() - win->event.frameTime;
 
 	u32 output_fps = 0;
@@ -1811,6 +1860,82 @@ void RGFW_updateLockState(RGFW_window* win, b8 capital, b8 numlock) {
 		else if (!allow && (win->_winArgs & RGFW_ALLOW_DND))
 			win->_winArgs ^= RGFW_ALLOW_DND;
 	}
+#endif
+
+
+#if 1
+/* === CUSTOM SGFW CODE IMPLEMENTATION STARTS HERE === */
+
+b32 SGFW_errorLog(siError* error, rawptr data) {
+	if (error->code < SI_ERROR_SYSTEM_END) {
+		return si_systemErrorLog(error, nil); /* Generic sili error. */
+	}
+
+	if (error->code == SGFW_errorPlatform) {
+		SI_ASSERT_NOT_NIL(data);
+		error->code = SGFW_errorGet(*(i32*)data);
+	}
+
+	siPrintColor red = si_printColor3bitEx(siPrintColor3bit_Red, true, false);
+#ifndef SI_NO_ERROR_STRUCT
+	si_fprintf(
+		si_stderr, "%CSystem error at \"%s:%i\"%C: %S: %S\n",
+		red, error->filename, error->line,
+		SGFW_errorName(error->code), SI_STR("TODO"), error->code
+	);
+
+#else
+	SI_PANIC("TODO");
+#endif
+
+	return true;
+}
+
+
+siString SGFW_errorName(SGFW_error error) {
+	SI_STOPIF(error < SI_ERROR_SYSTEM_END, return si_systemErrorName(error));
+
+	isize index = error - SI_ERROR_SYSTEM_END;
+	SI_ASSERT(index < SGFW_errorLength);
+
+    static const siString names[SGFW_errorLength] = {
+        SI_STRC("SGFW_errorWindow"),
+        SI_STRC("SGFW_errorPlatform"),
+
+		#ifdef RGFW_X11
+        SI_STRC("SGFW_errorXorgRequest"),
+        SI_STRC("SGFW_errorXorgAtom"),
+        SI_STRC("SGFW_errorXorgCursor"),
+        SI_STRC("SGFW_errorXorgMatch"),
+        SI_STRC("SGFW_errorXorgPixmap"),
+		#endif
+    };
+
+	return names[index];
+
+}
+
+SGFW_error SGFW_errorGet(i32 error) {
+#ifdef RGFW_X11
+	switch (error) {
+		case Success: return 0;
+		case BadRequest: return SGFW_errorXorgRequest;
+		case BadValue: return SGFW_errorInvalid;
+		case BadWindow: return SGFW_errorWindow;
+
+		case BadAlloc: return siErrorSystem_Unavailable;
+		case BadAtom: return SGFW_errorXorgAtom;
+		case BadCursor: return SGFW_errorXorgCursor;
+		case BadMatch: return SGFW_errorXorgMatch;
+		case BadPixmap: return SGFW_errorXorgPixmap;
+	}
+#endif
+
+	si_printf("error: %i\n", error);
+	return SGFW_errorPlatform;
+}
+
+/* === CUSTOM SGFW CODE IMPLEMENTATION ENDS HERE === */
 #endif
 
 /*
@@ -2422,7 +2547,7 @@ Start of Linux / Unix defines
 RGFWDEF void RGFW_init_buffer(RGFW_window* win, XVisualInfo* vi);
 
 void RGFW_init_buffer(RGFW_window* win, XVisualInfo* vi) {
-	SI_ASSERT_NOT_NULL(win);
+	SI_ASSERT_NOT_NIL(win);
 #if defined(RGFW_OSMESA) || defined(RGFW_BUFFER)
 	if (RGFW_bufferSize.w == 0 && RGFW_bufferSize.h == 0)
 		RGFW_bufferSize = RGFW_getScreenSize();
@@ -2453,7 +2578,7 @@ void RGFW_init_buffer(RGFW_window* win, XVisualInfo* vi) {
 }
 
 void RGFW_window_setBorder(RGFW_window* win, u8 border) {
-	SI_ASSERT_NOT_NULL(win);
+	SI_ASSERT_NOT_NIL(win);
 	static Atom _MOTIF_WM_HINTS = 0;
 	if (_MOTIF_WM_HINTS == 0 )
 		_MOTIF_WM_HINTS = XInternAtom(win->src.display, "_MOTIF_WM_HINTS", False);
@@ -2473,7 +2598,7 @@ void RGFW_window_setBorder(RGFW_window* win, u8 border) {
 }
 
 void RGFW_releaseCursor(RGFW_window* win) {
-	SI_ASSERT_NOT_NULL(win);
+	SI_ASSERT_NOT_NIL(win);
 	XUngrabPointer(win->src.display, CurrentTime);
 
 	/* disable raw input */
@@ -2487,7 +2612,7 @@ void RGFW_releaseCursor(RGFW_window* win) {
 }
 
 void RGFW_captureCursor(RGFW_window* win, RGFW_rect r) {
-	SI_ASSERT_NOT_NULL(win);
+	SI_ASSERT_NOT_NIL(win);
 	/* enable raw input */
 	unsigned char mask[XIMaskLen(XI_RawMotion)] = { 0 };
 	XISetMask(mask, XI_RawMotion);
@@ -2620,6 +2745,8 @@ RGFW_window* RGFW_createWindow(siString name, RGFW_rect rect, u16 args, siAlloca
 	// with your application - robrohan
 
 	/* TODO(EimaMei): Check if the string needs to stay alive. */
+
+#if 0
 	if (RGFW_className == NULL)
 		RGFW_className = (char*)nil;
 	SI_PANIC_MSG("TODO: Fix this later");
@@ -2631,6 +2758,7 @@ RGFW_window* RGFW_createWindow(siString name, RGFW_rect rect, u16 args, siAlloca
 	hint->res_name = (char*)nil; // just use the window name as the app name
 	XSetClassHint((Display*) win->src.display, win->src.window, hint);
 	XFree(hint);
+#endif
 
 	if ((args & RGFW_NO_INIT_API) == 0) {
 		#ifdef RGFW_OPENGL /* This is the second part of setting up opengl. This is where we ask OpenGL for a specific version. */
@@ -2711,9 +2839,7 @@ RGFW_window* RGFW_createWindow(siString name, RGFW_rect rect, u16 args, siAlloca
 		glXMakeCurrent(win->src.display, win->src.window, win->src.ctx);
 	#endif
 
-	//XStoreName((Display*) win->src.display, (Drawable) win->src.window, name);
-	SI_PANIC_MSG("TODO: fix this");
-
+	XStoreName(win->src.display, win->src.window, "TODO FIX THIS");
 	XMapWindow(win->src.display, win->src.window);
 	XMoveWindow(win->src.display, win->src.window, win->r.x, win->r.y);
 
@@ -3275,7 +3401,7 @@ RGFW_window* RGFW_createWindow(siString name, RGFW_rect rect, u16 args, siAlloca
 
 
 void RGFW_window_resize(RGFW_window* win, RGFW_area a) {
-	SI_ASSERT_NOT_NULL(win);
+	SI_ASSERT_NOT_NIL(win);
 	SI_ASSERT_NOT_NEG(a.width);
 	SI_ASSERT_NOT_NEG(a.height);
 
@@ -3295,7 +3421,7 @@ void RGFW_window_resize(RGFW_window* win, RGFW_area a) {
 }
 
 void RGFW_window_setMinSize(RGFW_window* win, RGFW_area a) {
-	SI_ASSERT_NOT_NULL(win);
+	SI_ASSERT_NOT_NIL(win);
 	SI_ASSERT_NOT_NEG(a.width);
 	SI_ASSERT_NOT_NEG(a.height);
 
@@ -3316,7 +3442,7 @@ void RGFW_window_setMinSize(RGFW_window* win, RGFW_area a) {
 }
 
 void RGFW_window_setMaxSize(RGFW_window* win, RGFW_area a) {
-	SI_ASSERT_NOT_NULL(win);
+	SI_ASSERT_NOT_NIL(win);
 	SI_ASSERT_NOT_NEG(a.width);
 	SI_ASSERT_NOT_NEG(a.height);
 
@@ -3396,36 +3522,32 @@ void RGFW_window_setMaxSize(RGFW_window* win, RGFW_area a) {
 		the majority function is sourced from GLFW
 	*/
 
-void RGFW_window_setIcon(RGFW_window* win, u8* icon, RGFW_area a, i32 channels) {
-	SI_ASSERT_NOT_NULL(win);
-	SI_ASSERT_NOT_NULL(icon);
+b32 RGFW_window_setIcon(RGFW_window* win, u8* icon, RGFW_area a, i32 channels) {
+	SI_ASSERT_NOT_NIL(win);
+	SI_ASSERT_NOT_NIL(icon);
 	SI_ASSERT_NOT_NEG(a.width);
 	SI_ASSERT_NOT_NEG(a.height);
 	SI_ASSERT_NOT_NEG(channels);
+	SI_ASSERT(channels == 3 || channels == 4);
 
+	/* NOTE(EimaMei): '_NET_WM_ICON' expects a format of two 32-bit 'unsigned long'
+	 * integers that state the image's resolution, followed by a BGRA buffer (also
+	 * as unsigned long). */
+	int count = (2 + a.width * a.height);
+	unsigned long* data = si_mallocArray(unsigned long, count);
+	data[0] = (unsigned long)a.width;
+	data[1] = (unsigned long)a.height;
 
-	isize count = si_sizeof(u32) * (2 + a.width * a.height);
-	rawptr data = si_malloc(count);
-	si_memcopy(data, &a, si_sizeof(a));
-
-	u32* target = (u32*)si_pointerAdd(data, si_sizeof(u32) * 2);
-
+	unsigned long* target = &data[2];
 	for_range (x, 0, a.width) {
 		for_range (y, 0, a.height) {
 			isize i = y * a.width + x;
+			u32 alpha = (channels == 4) ? icon[i * 4 + 3] : 0xFF;
 
-			if (channels == 4) {
-				target[i] = (u32)((icon[i * 3 + 0]) << 16) |
-							(u32)((icon[i * 3 + 1]) << 8) |
-							(u32)((icon[i * 3 + 2]) << 0) |
-							(u32)(0xFFu << 24);
-			}
-			else {
-				target[i] = (u32)((icon[i * 4 + 0]) << 16) |
-							(u32)((icon[i * 4 + 1]) << 8) |
-							(u32)((icon[i * 4 + 2]) << 0) |
-							(u32)((icon[i * 4 + 3]) << 24);
-			}
+			target[i] = (unsigned long)((icon[i * 4 + 0]) << 16) |
+						(unsigned long)((icon[i * 4 + 1]) <<  8) |
+						(unsigned long)((icon[i * 4 + 2]) <<  0) |
+						(unsigned long)(alpha << 24);
 		}
 	}
 
@@ -3433,44 +3555,60 @@ void RGFW_window_setIcon(RGFW_window* win, u8* icon, RGFW_area a, i32 channels) 
 	if (NET_WM_ICON == 0)
 		NET_WM_ICON = XInternAtom(win->src.display, "_NET_WM_ICON", False);
 
-	XChangeProperty(
-		win->src.display, win->src.window, NET_WM_ICON, 6, 32,
-		PropModeReplace, (u8*)data, (int)count
+	b32 res = (b32)XChangeProperty(
+		win->src.display, win->src.window, NET_WM_ICON, XA_CARDINAL, 32,
+		PropModeReplace, (u8*)data, count
 	);
 
-	si_mfree(target);
+	si_mfree(data);
 	XFlush(win->src.display);
+
+	return res;
 }
 
-	void RGFW_window_setMouse(RGFW_window* win, u8* image, RGFW_area a, i32 channels) {
-		assert(win != NULL);
+b32 RGFW_window_setMouse(RGFW_window* win, u8* icon, RGFW_area a, i32 channels) {
+	SI_ASSERT_NOT_NIL(win);
+	SI_ASSERT_NOT_NIL(icon);
+	SI_ASSERT_NOT_NEG(a.width);
+	SI_ASSERT_NOT_NEG(a.height);
+	SI_ASSERT_NOT_NEG(channels);
+	SI_ASSERT(channels == 3 || channels == 4);
+
 
 #ifndef RGFW_NO_X11_CURSOR
-		XcursorImage* native = XcursorImageCreate(a.w, a.h);
-		native->xhot = 0;
-		native->yhot = 0;
+	XcursorImage* native = XcursorImageCreate(a.width, a.height);
+	native->xhot = 0;
+	native->yhot = 0;
 
-		u8* source = (u8*) image;
-		XcursorPixel* target = native->pixels;
 
-		u32 i;
-		for (i = 0; i < a.w * a.h; i++, target++, source += 4) {
-			u8 alpha = 0xFF;
-			if (channels == 4)
-				alpha = source[3];
+	XcursorPixel* target = native->pixels;
+	for_range (x, 0, a.width) {
+		for_range (y, 0, a.height) {
+			isize i = y * a.width + x;
+			u32 alpha = (channels == 4) ? icon[i * 4 + 3] : 0xFF;
 
-			*target = (alpha << 24) | (((source[0] * alpha) / 255) << 16) | (((source[1] * alpha) / 255) << 8) | (((source[2] * alpha) / 255) << 0);
+			target[i] = (u32)((icon[i * 4 + 0]) << 16)
+				| (u32)((icon[i * 4 + 1]) << 8)
+				| (u32)((icon[i * 4 + 2]) << 0)
+				| (u32)(alpha << 24);
 		}
+	}
 
-		Cursor cursor = XcursorImageLoadCursor((Display*) win->src.display, native);
-		XDefineCursor((Display*) win->src.display, (Window) win->src.window, (Cursor) cursor);
+	Cursor cursor = XcursorImageLoadCursor(win->src.display, native);
 
-		XFreeCursor((Display*) win->src.display, (Cursor) cursor);
-		XcursorImageDestroy(native);
+	b32 res = (b32)XDefineCursor(win->src.display, win->src.window, cursor);
+	if (res) {
+		XFreeCursor(win->src.display, cursor);
+	}
+	XcursorImageDestroy(native);
+
+	return (b32)res;
 #else
 	RGFW_UNUSED(image) RGFW_UNUSED(a.w) RGFW_UNUSED(channels)
+	return false;
 #endif
-	}
+
+}
 
 	void RGFW_window_moveMouse(RGFW_window* win, RGFW_point p) {
 		assert(win != NULL);
@@ -3551,7 +3689,7 @@ void RGFW_window_setIcon(RGFW_window* win, u8* icon, RGFW_area a, i32 channels) 
 			&format, &sizeN, &N, (unsigned char**) &data);
 
 		if (target == UTF8 || target == XA_STRING) {
-			s = (char*)RGFW_MALLOC(sizeof(char) * sizeN);
+			s = si_mallocArray(char, sizeN);
 			strncpy(s, data, sizeN);
 			s[sizeN] = '\0';
 			XFree(data);
@@ -3795,89 +3933,99 @@ void RGFW_window_setIcon(RGFW_window* win, u8* icon, RGFW_area a, i32 channels) 
 		*yscale = ydpi / 96.f;
 	}
 
-	RGFW_monitor RGFW_XCreateMonitor(i32 screen) {
-		RGFW_monitor monitor;
 
-		Display* display = XOpenDisplay(NULL);
+RGFW_monitor RGFW_XCreateMonitor(i32 screen) {
+	Display* display = XOpenDisplay(NULL);
 
-		RGFW_area size = RGFW_getScreenSize();
+	RGFW_area size = RGFW_getScreenSize();
+	RGFW_monitor monitor;
+	monitor.rect = RGFW_RECT(0, 0, size.width, size.height);
+	monitor.physW = DisplayWidthMM(display, screen) / 25.4f;
+	monitor.physH = DisplayHeightMM(display, screen) / 25.4f;
 
-		monitor.rect = RGFW_RECT(0, 0, size.w, size.h);
-		monitor.physW = DisplayWidthMM(display, screen) / 25.4;
-		monitor.physH = DisplayHeightMM(display, screen) / 25.4;
+	XGetSystemContentScale(display, &monitor.scaleX, &monitor.scaleY);
+	XRRScreenResources* sr = XRRGetScreenResourcesCurrent(display, RootWindow(display, screen));
 
-		XGetSystemContentScale(display, &monitor.scaleX, &monitor.scaleY);
-		XRRScreenResources* sr = XRRGetScreenResourcesCurrent(display, RootWindow(display, screen));
+	XRRCrtcInfo* ci = NULL;
+	int crtc = screen;
 
-		XRRCrtcInfo* ci = NULL;
-		int crtc = screen;
+	if (sr->ncrtc > crtc) {
+		ci = XRRGetCrtcInfo(display, sr, sr->crtcs[crtc]);
+	}
 
-		if (sr->ncrtc > crtc) {
-			ci = XRRGetCrtcInfo(display, sr, sr->crtcs[crtc]);
-		}
+	if (ci == NULL) {
+		f32 dpi_width  = si_round(f32, (f32)monitor.rect.width / monitor.physW),
+			dpi_height = si_round(f32, (f32)monitor.rect.height / monitor.physH);
 
-		if (ci == NULL) {
-			f32 dpi_width = round((f32)monitor.rect.w/(f32)monitor.physW);
-			f32 dpi_height = round((f32)monitor.rect.h/(f32)monitor.physH);
-
-			monitor.scaleX = (f32) (dpi_width) / (f32) 96;
-			monitor.scaleY = (f32) (dpi_height) / (f32) 96;
-			XRRFreeScreenResources(sr);
-			XCloseDisplay(display);
-
-			#ifdef RGFW_DEBUG
-			printf("RGFW INFO: monitor found: scale (%s):\n   rect: {%i, %i, %i, %i}\n   physical size:%f %f\n   scale: %f %f\n", monitor.name, monitor.rect.x, monitor.rect.y, monitor.rect.w, monitor.rect.h, monitor.physW, monitor.physH, monitor.scaleX, monitor.scaleY);
-			#endif
-			return monitor;
-		}
-
-		XRROutputInfo* info = XRRGetOutputInfo (display, sr, sr->outputs[screen]);
-		f32 physW = info->mm_width / 25.4;
-		f32 physH = info->mm_height / 25.4;
-
-		if (physW && physH) {
-			monitor.physW = physW;
-			monitor.physH = physH;
-		}
-
-		monitor.rect.x = ci->x;
-		monitor.rect.y = ci->y;
-
-		f32 w = ci->width;
-		f32 h = ci->height;
-		if (w && h) {
-			monitor.rect.w = w;
-			monitor.rect.h = h;
-		}
-
-		if (monitor.physW == 0 || monitor.physH == 0) {
-			monitor.scaleX = 0;
-			monitor.scaleY = 0;
-		} else {
-			f32 dpi_width = round((f32)monitor.rect.w/(f32)monitor.physW);
-			f32 dpi_height = round((f32)monitor.rect.h/(f32)monitor.physH);
-
-			monitor.scaleX = (f32) (dpi_width) / (f32) 96;
-			monitor.scaleY = (f32) (dpi_height) / (f32) 96;
-
-			if (isinf(monitor.scaleX) || (monitor.scaleX > 1 && monitor.scaleX < 1.1))
-				monitor.scaleX = 1;
-
-			if (isinf(monitor.scaleY) || (monitor.scaleY > 1 && monitor.scaleY < 1.1))
-				monitor.scaleY = 1;
-		}
-
-		XRRFreeCrtcInfo(ci);
+		monitor.scaleX = dpi_width / 96.0f;
+		monitor.scaleY = dpi_height / 96.0f;
 		XRRFreeScreenResources(sr);
-
 		XCloseDisplay(display);
 
 		#ifdef RGFW_DEBUG
-		printf("RGFW INFO: monitor found: scale (%s):\n   rect: {%i, %i, %i, %i}\n   physical size:%f %f\n   scale: %f %f\n", monitor.name, monitor.rect.x, monitor.rect.y, monitor.rect.w, monitor.rect.h, monitor.physW, monitor.physH, monitor.scaleX, monitor.scaleY);
+		si_printf(
+			"RGFW INFO: monitor found: scale (%s):\n"
+				"\trect: {%i, %i, %i, %i}\n"
+				"\tphysical size:%f %f\n"
+				"\tscale: %f %f\n",
+			monitor.name,
+			monitor.rect.x, monitor.rect.y, monitor.rect.width, monitor.rect.height,
+			monitor.physW, monitor.physH,
+			monitor.scaleX, monitor.scaleY
+		);
 		#endif
-
 		return monitor;
 	}
+
+	XRROutputInfo* info = XRRGetOutputInfo(display, sr, sr->outputs[screen]);
+	f32 physW = (f32)info->mm_width / 25.4f,
+		physH = (f32)info->mm_height / 25.4f;
+
+	if (physW != 0.0f && physH != 0.0f) {
+		monitor.physW = physW;
+		monitor.physH = physH;
+	}
+
+	monitor.rect.x = ci->x;
+	monitor.rect.y = ci->y;
+
+	f32 w = (f32)ci->width,
+		h = (f32)ci->height;
+	if (w != 0 && h != 0) {
+		monitor.rect.width = (i32)ci->width;
+		monitor.rect.height = (i32)ci->height;
+	}
+
+	if (monitor.physW == 0 || monitor.physH == 0) {
+		monitor.scaleX = 0;
+		monitor.scaleY = 0;
+	} else {
+		f32 dpi_width  = si_round(f32, (f32)monitor.rect.width / monitor.physW),
+			dpi_height = si_round(f32, (f32)monitor.rect.height / monitor.physH);
+
+		monitor.scaleX = dpi_width / 96.f;
+		monitor.scaleY = dpi_height / 96.f;
+
+		/* TODO(EimaMei): Why does this check for if the scaling is infinite?
+		 * Very suspicious. Needs testing. */
+		if (si_float32IsInf(monitor.scaleX) || (monitor.scaleX > 1 && monitor.scaleX < 1.1))
+			monitor.scaleX = 1;
+
+		if (si_float32IsInf(monitor.scaleY) || (monitor.scaleY > 1 && monitor.scaleY < 1.1))
+			monitor.scaleY = 1;
+	}
+
+	XRRFreeCrtcInfo(ci);
+	XRRFreeScreenResources(sr);
+
+	XCloseDisplay(display);
+
+	#ifdef RGFW_DEBUG
+	printf("RGFW INFO: monitor found: scale (%s):\n   rect: {%i, %i, %i, %i}\n   physical size:%f %f\n   scale: %f %f\n", monitor.name, monitor.rect.x, monitor.rect.y, monitor.rect.w, monitor.rect.h, monitor.physW, monitor.physH, monitor.scaleX, monitor.scaleY);
+	#endif
+
+	return monitor;
+}
 
 	RGFW_monitor RGFW_monitors[6];
 	RGFW_monitor* RGFW_getMonitors(void) {
@@ -3916,7 +4064,7 @@ void RGFW_window_setIcon(RGFW_window* win, u8* icon, RGFW_area a, i32 channels) 
 	}
 
 	RGFW_monitor RGFW_window_getMonitor(RGFW_window* win) {
-		SI_ASSERT_NOT_NULL(win);
+		SI_ASSERT_NOT_NIL(win);
 		return RGFW_XCreateMonitor(DefaultScreen(win->src.display));
 	}
 
@@ -3981,88 +4129,87 @@ void RGFW_window_setIcon(RGFW_window* win, u8* icon, RGFW_area a, i32 channels) 
 	#endif
 
 
-	void RGFW_window_close(RGFW_window* win) {
-		/* ungrab pointer if it was grabbed */
-		if (win->_winArgs & RGFW_HOLD_MOUSE)
-			XUngrabPointer(win->src.display, CurrentTime);
+void RGFW_window_close(RGFW_window* win) {
+	SI_ASSERT_NOT_NIL(win);
 
-		assert(win != NULL);
-#ifdef RGFW_EGL
-		RGFW_closeEGL(win);
-#endif
+	/* ungrab pointer if it was grabbed */
+	if (win->_winArgs & RGFW_HOLD_MOUSE)
+		XUngrabPointer(win->src.display, CurrentTime);
 
-#if defined(RGFW_OSMESA) || defined(RGFW_BUFFER)
-		if (win->buffer != NULL) {
-			XDestroyImage((XImage*) win->src.bitmap);
-			XFreeGC(win->src.display, win->src.gc);
-		}
-#endif
+	#ifdef RGFW_EGL
+	RGFW_closeEGL(win);
+	#endif
 
-		if ((Display*) win->src.display) {
-#ifdef RGFW_OPENGL
-			glXDestroyContext((Display*) win->src.display, win->src.ctx);
-#endif
-
-			if (win == RGFW_root)
-				RGFW_root = NULL;
-
-			if ((Drawable) win->src.window)
-				XDestroyWindow((Display*) win->src.display, (Drawable) win->src.window); /*!< close the window*/
-
-			XCloseDisplay((Display*) win->src.display); /*!< kill the display*/
-		}
-
-#ifdef RGFW_ALLOC_DROPFILES
-		{
-			u32 i;
-			for (i = 0; i < RGFW_MAX_DROPS; i++)
-				RGFW_FREE(win->event.droppedFiles[i]);
-
-
-			RGFW_FREE(win->event.droppedFiles);
-		}
-#endif
-
-		RGFW_windowsOpen--;
-#if !defined(RGFW_NO_X11_CURSOR_PRELOAD) && !defined(RGFW_NO_X11_CURSOR)
-		if (X11Cursorhandle != NULL && RGFW_windowsOpen <= 0) {
-			dlclose(X11Cursorhandle);
-
-			X11Cursorhandle = NULL;
-		}
-#endif
-#if !defined(RGFW_NO_X11_XI_PRELOAD)
-		if (X11Xihandle != NULL && RGFW_windowsOpen <= 0) {
-			dlclose(X11Xihandle);
-
-			X11Xihandle = NULL;
-		}
-#endif
-
-		if (RGFW_libxshape != NULL && RGFW_windowsOpen <= 0) {
-			dlclose(RGFW_libxshape);
-			RGFW_libxshape = NULL;
-		}
-
-		if (RGFW_windowsOpen <= 0) {
-			if (RGFW_eventWait_forceStop[0] || RGFW_eventWait_forceStop[1]){
-				close(RGFW_eventWait_forceStop[0]);
-				close(RGFW_eventWait_forceStop[1]);
-			}
-
-			u8 i;
-			for (i = 0; i < RGFW_gamepadCount; i++) {
-				if(RGFW_gamepads[i])
-					close(RGFW_gamepads[i]);
-			}
-		}
-
-		/* set cleared display / window to NULL for error checking */
-		win->src.display = (Display*) 0;
-		win->src.window = (Window) 0;
-
-		RGFW_FREE(win); /*!< free collected window data */
+	#if defined(RGFW_OSMESA) || defined(RGFW_BUFFER)
+	if (win->buffer != NULL) {
+		XDestroyImage((XImage*)win->src.bitmap);
+		XFreeGC(win->src.display, win->src.gc);
 	}
+	#endif
+
+	if (win->src.display) {
+		#ifdef RGFW_OPENGL
+		glXDestroyContext(win->src.display, win->src.ctx);
+		#endif
+
+		if (win == RGFW_root)
+			RGFW_root = NULL;
+
+		if (win->src.window)
+			XDestroyWindow(win->src.display, win->src.window);
+
+		XCloseDisplay(win->src.display);
+	}
+
+	#ifdef RGFW_ALLOC_DROPFILES
+	{
+		u32 i;
+		for (i = 0; i < RGFW_MAX_DROPS; i++)
+			RGFW_FREE(win->event.droppedFiles[i]);
+
+
+		RGFW_FREE(win->event.droppedFiles);
+	}
+	#endif
+
+	#if !defined(RGFW_NO_X11_CURSOR_PRELOAD) && !defined(RGFW_NO_X11_CURSOR)
+	if (X11Cursorhandle != NULL && RGFW_windowsOpen <= 0) {
+		si_dllUnload(X11Cursorhandle);
+		X11Cursorhandle = NULL;
+	}
+	#endif
+
+	#if !defined(RGFW_NO_X11_XI_PRELOAD)
+	if (X11Xihandle != NULL && RGFW_windowsOpen <= 0) {
+		si_dllUnload(X11Xihandle);
+		X11Xihandle = NULL;
+	}
+	#endif
+
+	if (RGFW_libxshape != NULL && RGFW_windowsOpen <= 0) {
+		dlclose(RGFW_libxshape);
+		RGFW_libxshape = NULL;
+	}
+
+	if (RGFW_windowsOpen <= 0) {
+		if (RGFW_eventWait_forceStop[0] || RGFW_eventWait_forceStop[1]){
+			close(RGFW_eventWait_forceStop[0]);
+			close(RGFW_eventWait_forceStop[1]);
+		}
+
+		for_range (i, 0, RGFW_gamepadCount) {
+			if (RGFW_gamepads[i])
+				close(RGFW_gamepads[i]);
+		}
+	}
+
+	/* set cleared display / window to NULL for error checking */
+	win->src.display = 0;
+	win->src.window = 0;
+	RGFW_windowsOpen -= 1;
+
+	si_free(win->alloc, win);
+}
 
 
 /*
@@ -5009,7 +5156,7 @@ static const struct wl_callback_listener wl_surface_frame_listener = {
 	}
 
 	RGFW_monitor RGFW_window_getMonitor(RGFW_window* win) {
-		SI_ASSERT_NOT_NULL(win);
+		SI_ASSERT_NOT_NIL(win);
 		RGFW_monitor m = {};
 		RGFW_UNUSED(win);
 		RGFW_UNUSED(m);
@@ -6421,7 +6568,7 @@ RGFW_UNUSED(win); /*!< if buffer rendering is not being used */
 	}
 
 	RGFW_monitor RGFW_window_getMonitor(RGFW_window* win) {
-		SI_ASSERT_NOT_NULL(win);
+		SI_ASSERT_NOT_NIL(win);
 		HMONITOR src = MonitorFromWindow(win->src.window, MONITOR_DEFAULTTOPRIMARY);
 		return win32CreateMonitor(src);
 	}
@@ -8524,7 +8671,7 @@ RGFW_UNUSED(win); /*!< if buffer rendering is not being used */
 	}
 
 	RGFW_monitor RGFW_window_getMonitor(RGFW_window* win) {
-		SI_ASSERT_NOT_NULL(win);
+		SI_ASSERT_NOT_NIL(win);
 		return RGFW_NSCreateMonitor(win->src.display);
 	}
 
