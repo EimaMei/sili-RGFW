@@ -337,6 +337,11 @@ typedef RGFW_ENUM(i32, SGFW_error) {
 	SGFW_errorXorgMatch,
 	/* */
 	SGFW_errorXorgPixmap,
+
+	/* */
+	SGFW_errorGlxConfig,
+	/* */
+	SGFW_errorGlxVisual,
 #endif
 
 	SGFW__errorEnd,
@@ -344,8 +349,15 @@ typedef RGFW_ENUM(i32, SGFW_error) {
 	SGFW_errorLength = SGFW__errorEnd - SI_ERROR_SYSTEM_END,
 };
 
-#define SGFW_CHECK_EX(condition, code, param) \
-	SI_ERROR_CHECK_EX_RET(condition, code, SGFW_errorLog, param)
+#define SGFW_CHECK(condition, code) \
+	SI_ERROR_CHECK_EX(condition, code, SGFW_errorLog, nil, return SI_ERROR_RES)
+
+#define SGFW_CHECK_EX(condition, code, ...) \
+	SI_ERROR_CHECK_EX(condition, code, SGFW_errorLog, nil, __VA_ARGS__)
+
+
+#define SGFW_CHECK_PLATFORM(condition, platformCode) \
+	SI_ERROR_CHECK_EX_RET(condition, SGFW_errorPlatform, SGFW_errorLog, &(i32){platformCode})
 
 /* TODO */
 RGFWDEF siString SGFW_errorName(SGFW_error error);
@@ -391,7 +403,8 @@ RGFWDEF SI_ERROR_PROC(SGFW_errorLog);
 
 typedef RGFW_ENUM(u8, RGFW_event_types) {
 	/*! event codes */
- 	RGFW_keyPressed = 1, /* a key has been pressed */
+	RGFW_noEvent = 0, /*!< no event has been sent */
+ 	RGFW_keyPressed, /* a key has been pressed */
 	RGFW_keyReleased, /*!< a key has been released*/
 	/*! key event note
 		the code of the key pressed is stored in
@@ -412,11 +425,11 @@ typedef RGFW_ENUM(u8, RGFW_event_types) {
 
 		RGFW_Event.button holds which mouse button was pressed
 	*/
-	RGFW_gpConnected, /*!< a gamepad was connected */
-	RGFW_gpDisconnected, /*!< a gamepad was disconnected */
-	RGFW_gpButtonPressed, /*!< a gamepad button was pressed */
-	RGFW_gpButtonReleased, /*!< a gamepad button was released */
-	RGFW_gpAxisMove, /*!< an axis of a gamepad was moved*/
+	RGFW_gamepadConnected, /*!< a gamepad was connected */
+	RGFW_gamepadDisconnected, /*!< a gamepad was disconnected */
+	RGFW_gamepadButtonPressed, /*!< a gamepad button was pressed */
+	RGFW_gamepadButtonReleased, /*!< a gamepad button was released */
+	RGFW_gamepadAxisMove, /*!< an axis of a gamepad was moved*/
 	/*! gamepad event note
 		RGFW_Event.gamepad holds which gamepad was altered, if any
 		RGFW_Event.button holds which gamepad button was pressed
@@ -450,11 +463,14 @@ typedef RGFW_ENUM(u8, RGFW_event_types) {
 };
 
 /*! mouse button codes (RGFW_Event.button) */
-#define RGFW_mouseLeft  1 /*!< left mouse button is pressed*/
-#define RGFW_mouseMiddle  2 /*!< mouse-wheel-button is pressed*/
-#define RGFW_mouseRight  3 /*!< right mouse button is pressed*/
-#define RGFW_mouseScrollUp  4 /*!< mouse wheel is scrolling up*/
-#define RGFW_mouseScrollDown  5 /*!< mouse wheel is scrolling down*/
+enum RGFW_mouse_codes {
+	RGFW_mouseNone = 0, /*!< no mouse button is pressed*/
+	RGFW_mouseLeft, /*!< left mouse button is pressed*/
+	RGFW_mouseMiddle, /*!< mouse-wheel-button is pressed*/
+	RGFW_mouseRight, /*!< right mouse button is pressed*/
+	RGFW_mouseScrollUp, /*!< mouse wheel is scrolling up*/
+	RGFW_mouseScrollDown /*!< mouse wheel is scrolling down*/
+};
 
 #ifndef RGFW_MAX_PATH
 #define RGFW_MAX_PATH 260 /* max length of a path (for dnd) */
@@ -469,27 +485,28 @@ typedef RGFW_ENUM(u8, RGFW_event_types) {
 #define RGFW_NUMLOCK (1L << 2)
 
 /*! gamepad button codes (based on xbox/playstation), you may need to change these values per controller */
-#ifndef RGFW_gamepad_codes
-	typedef RGFW_ENUM(u8, RGFW_gamepad_codes) {
-		RGFW_GP_A = 0, /*!< or PS X button */
-		RGFW_GP_B = 1, /*!< or PS circle button */
-		RGFW_GP_Y = 2, /*!< or PS triangle button */
-		RGFW_GP_X = 3, /*!< or PS square button */
-		RGFW_GP_L1 = 4, /*!< left bump */
-		RGFW_GP_L2 = 5, /*!< left trigger*/
-		RGFW_GP_R1 = 6, /*!< right bumper */
-		RGFW_GP_R2 = 7, /*!< right trigger */
-		RGFW_GP_SELECT = 8, /*!< select button */
-		RGFW_GP_START = 9, /*!< start button */
-		RGFW_GP_HOME = 10, /*!< home button */
-		RGFW_GP_L3 = 11, /* left thumb stick */
-		RGFW_GP_R3 = 12, /*!< right thumb stick */
-		RGFW_GP_UP = 13, /*!< dpad up */
-		RGFW_GP_DOWN = 14, /*!< dpad down*/
-		RGFW_GP_LEFT = 15, /*!< dpad left */
-		RGFW_GP_RIGHT = 16, /*!< dpad right */
-	};
-#endif
+typedef RGFW_ENUM(u8, RGFW_gamepadcodes) {
+	RGFW_gamepadNone = 0, /*!< or PS X button */
+	RGFW_gamepadA, /*!< or PS X button */
+	RGFW_gamepadB, /*!< or PS circle button */
+	RGFW_gamepadY, /*!< or PS triangle button */
+	RGFW_gamepadX, /*!< or PS square button */
+	RGFW_gamepadStart, /*!< start button */
+	RGFW_gamepadSelect, /*!< select button */
+	RGFW_gamepadHome, /*!< home button */
+	RGFW_gamepadUp, /*!< dpad up */
+	RGFW_gamepadDown, /*!< dpad down*/
+	RGFW_gamepadLeft, /*!< dpad left */
+	RGFW_gamepadRight, /*!< dpad right */
+	RGFW_gamepadL1, /*!< left bump */
+	RGFW_gamepadL2, /*!< left trigger*/
+	RGFW_gamepadR1, /*!< right bumper */
+	RGFW_gamepadR2, /*!< right trigger */
+	RGFW_gamepadL3,  /* left thumb stick */
+	RGFW_gamepadR3, /*!< right thumb stick */
+	RGFW_gamepadFinal
+};
+
 
 /*! basic vector type, if there's not already a point/vector type of choice */
 #ifndef RGFW_point
@@ -516,6 +533,7 @@ typedef RGFW_ENUM(u8, RGFW_event_types) {
 		char name[128]; /*!< monitor name */
 		RGFW_rect rect; /*!< monitor Workarea */
 		f32 scaleX, scaleY; /*!< monitor content scale*/
+		f32 pixelRatio; /*!< pixel ratio for monitor (1.0 for regular, 2.0 for)  */
 		f32 physW, physH; /*!< monitor physical size in inches*/
 	} RGFW_monitor;
 
@@ -662,7 +680,7 @@ typedef struct RGFW_window_src {
 
 
 typedef struct RGFW_window {
-	siAllocator alloc; /*!< allocator */
+	b32 initialized; /*!< window is valid and properly initialized > */
 	RGFW_window_src src; /*!< src window data */
 
 #if defined(RGFW_OSMESA) || defined(RGFW_BUFFER)
@@ -686,26 +704,24 @@ typedef struct RGFW_window {
 	typedef void* RGFW_thread; /*!< thread type for window */
 #endif
 
-/** * @defgroup Window_management
-* @{ */
 
 
 /*!
  * the class name for X11 and WinAPI. apps with the same class will be grouped by the WM
  * by default the class name will == the root window's name
 */
-RGFWDEF void RGFW_setClassName(const char* name);
+RGFWDEF void RGFW_setClassName(siString name);
 
 /*! this has to be set before createWindow is called, else the fulscreen size is used */
 RGFWDEF void RGFW_setBufferSize(RGFW_area size); /*!< the buffer cannot be resized (by RGFW) */
 
 /* NOTE: (windows)If the executable has an icon resource named RGFW_ICON, it will be set as the initial icon for the window.*/
 
-RGFWDEF RGFW_window* RGFW_createWindow(
+RGFWDEF siError RGFW_createWindow(
 	siString name, /* name of the window */
 	RGFW_rect rect, /* rect of window */
 	u16 args, /* extra arguments */
-	siAllocator alloc /* allocator to store the window struct */
+	RGFW_window* out /* pointer to the window struct */
 ); /*!< function to create a window struct */
 
 /*! get the size of the screen to an area struct */
@@ -733,9 +749,10 @@ RGFWDEF RGFW_Event* RGFW_window_checkEvent(RGFW_window* win); /*!< check current
 			  if waitMS == a negative integer, the loop will not return until it gets another event
 */
 typedef RGFW_ENUM(i32, RGFW_eventWait) {
-	RGFW_NEXT = -1,
-	RGFW_NO_WAIT = 0
+	RGFW_waitNext = -1,
+	RGFW_noWait = 0
 };
+
 
 /*! sleep until RGFW gets an event or the timer ends (defined by OS) */
 RGFWDEF void RGFW_window_eventWait(RGFW_window* win, i32 waitMS);
@@ -931,10 +948,10 @@ typedef void (* RGFW_keyfunc)(RGFW_window* win, u32 key, u32 mappedKey, char key
 /*! RGFW_mouseButtonPressed / RGFW_mouseButtonReleased, the window that got the event, the button that was pressed, the scroll value, if it was a press (else it's a release)  */
 typedef void (* RGFW_mousebuttonfunc)(RGFW_window* win, u8 button, double scroll, b8 pressed);
 /*!gp /gp, the window that got the event, the button that was pressed, the scroll value, if it was a press (else it's a release) */
-typedef void (* RGFW_gpButtonfunc)(RGFW_window* win, u16 gamepad, u8 button, b8 pressed);
-/*! RGFW_gpAxisMove, the window that got the event, the gamepad in question, the axis values and the amount of axises */
-typedef void (* RGFW_gpAxisfunc)(RGFW_window* win, u16 gamepad, RGFW_point axis[2], u8 axisesCount, u8 whichAxis);
-/*! RGFW_gpConnected/RGFW_gpDisconnected, the window that got the event, the gamepad in question, if the controller was connected (or disconnected if false) */
+typedef void (* RGFW_gamepadButtonfunc)(RGFW_window* win, u16 gamepad, u8 button, b8 pressed);
+/*! RGFW_gamepadAxisMove, the window that got the event, the gamepad in question, the axis values and the amount of axises */
+typedef void (* RGFW_gamepadAxisfunc)(RGFW_window* win, u16 gamepad, RGFW_point axis[2], u8 axisesCount, u8 whichAxis);
+/*! RGFW_gamepadConnected/RGFW_gamepadDisconnected, the window that got the event, the gamepad in question, if the controller was connected (or disconnected if false) */
 typedef void (* RGFW_gamepadfunc)(RGFW_window* win, u16 gamepad, b8 connected);
 
 /*!  RGFW_dnd, the window that had the drop, the drop data and the amount files dropped returns previous callback function (if it was set) */
@@ -966,9 +983,9 @@ RGFWDEF RGFW_keyfunc RGFW_setKeyCallback(RGFW_keyfunc func);
 /*! set callback for a mouse button (press / release ) event returns previous callback function (if it was set)  */
 RGFWDEF RGFW_mousebuttonfunc RGFW_setMouseButtonCallback(RGFW_mousebuttonfunc func);
 /*! set callback for a controller button (press / release ) event returns previous callback function (if it was set)  */
-RGFWDEF RGFW_gpButtonfunc RGFW_setgpButtonCallback(RGFW_gpButtonfunc func);
+RGFWDEF RGFW_gamepadButtonfunc RGFW_setgpButtonCallback(RGFW_gamepadButtonfunc func);
 /*! set callback for a gamepad axis mov event returns previous callback function (if it was set)  */
-RGFWDEF RGFW_gpAxisfunc RGFW_setgpAxisCallback(RGFW_gpAxisfunc func);
+RGFWDEF RGFW_gamepadAxisfunc RGFW_setgpAxisCallback(RGFW_gamepadAxisfunc func);
 /*! set callback for when a controller is connected or disconnected */
 RGFWDEF RGFW_gamepadfunc RGFW_setGamepadCallback(RGFW_gamepadfunc func);
 
@@ -1004,16 +1021,16 @@ RGFWDEF RGFW_gamepadfunc RGFW_setGamepadCallback(RGFW_gamepadfunc func);
 /** * @defgroup gamepad
 * @{ */
 
-typedef RGFW_ENUM(u8, RGFW_gpType) {
+typedef RGFW_ENUM(u8, RGFW_gamepadType) {
 	RGFW_MICROSOFT = 0, RGFW_SONY, RGFW_NINTENDO, RGFW_UNKNOWN
 };
 
 /*! gamepad count starts at 0*/
-RGFWDEF u32 RGFW_isPressedGP(RGFW_window* win, u8 controller, u8 button);
+RGFWDEF u32 RGFW_isPressedgamepad(RGFW_window* win, u8 controller, u8 button);
 RGFWDEF RGFW_point RGFW_getGamepadAxis(RGFW_window* win, u16 controller, u16 whichAxis);
 RGFWDEF char* RGFW_getGamepadName(RGFW_window* win, u16 controller);
 RGFWDEF size_t RGFW_getGamepadCount(RGFW_window* win);
-RGFWDEF RGFW_gpType RGFW_getGamepadType(RGFW_window* win, u16 controller);
+RGFWDEF RGFW_gamepadType RGFW_getGamepadType(RGFW_window* win, u16 controller);
 
 /** @} */
 
@@ -1048,7 +1065,7 @@ RGFWDEF void RGFW_window_setCPURender(RGFW_window* win, i8 set);
 	RGFWDEF void RGFW_setGLAuxBuffers(i32 auxBuffers); /*!< number of aux buffers (0 by default) */
 
 	/*! which profile to use for the opengl verion */
-	typedef RGFW_ENUM(u8, RGFW_GL_profile)  { RGFW_GL_CORE = 0,  RGFW_GL_COMPATIBILITY  };
+	typedef RGFW_ENUM(u8, RGFW_GL_profile)  { RGFW_glCore = 0,  RGFW_GL_COMPATIBILITY  };
 	/*! Set OpenGL version hint (core or compatibility profile)*/
 	RGFWDEF void RGFW_setGLVersion(RGFW_GL_profile profile, i32 major, i32 minor);
 	RGFWDEF void RGFW_setDoubleBuffer(b8 useDoubleBuffer);
@@ -1082,7 +1099,7 @@ RGFWDEF void RGFW_sleep(u64 milisecond); /*!< sleep for a set time */
 */
 
 typedef RGFW_ENUM(u8, RGFW_Key) {
-	RGFW_KEY_NULL = 0,
+	RGFW_nullKey = 0,
 	RGFW_Escape = '\033',
 	RGFW_Backtick = '`',
 	RGFW_0 = '0',
@@ -1191,25 +1208,23 @@ typedef RGFW_ENUM(u8, RGFW_Key) {
 	RGFW_KP_Period,
 	RGFW_KP_Return,
 
-	RGFW_final_key
+	RGFW_finalKey
 };
-
 
 typedef RGFW_ENUM(u8, RGFW_mouseIcons) {
-	RGFW_MOUSE_NORMAL = 0,
-	RGFW_MOUSE_ARROW,
-	RGFW_MOUSE_IBEAM,
-	RGFW_MOUSE_CROSSHAIR,
-	RGFW_MOUSE_POINTING_HAND,
-	RGFW_MOUSE_RESIZE_EW,
-	RGFW_MOUSE_RESIZE_NS,
-	RGFW_MOUSE_RESIZE_NWSE,
-	RGFW_MOUSE_RESIZE_NESW,
-	RGFW_MOUSE_RESIZE_ALL,
-	RGFW_MOUSE_NOT_ALLOWED,
+	RGFW_mouseNormal = 0,
+	RGFW_mouseArrow,
+	RGFW_mouseIbeam,
+	RGFW_mouseCrosshair,
+	RGFW_mousePointingHand,
+	RGFW_mouseResizeEW,
+	RGFW_mouseResizeNS,
+	RGFW_mouseResizeNWSE,
+	RGFW_mouseResizeNESW,
+	RGFW_mouseResizeAll,
+	RGFW_mouseNotAllowed,
 };
 
-/** @} */
 
 #ifdef RGFW_X11
 	#define RGFW_OS_BASED_VALUE(l, w, m, h, ww) l
@@ -1389,7 +1404,7 @@ typedef struct {
 	b8 prev  : 1;
 } RGFW_keyState;
 
-RGFW_keyState RGFW_keyboard[RGFW_final_key] = { {0, 0} };
+RGFW_keyState RGFW_keyboard[RGFW_finalKey] = { {0, 0} };
 
 RGFWDEF u32 RGFW_apiKeyToRGFW(u32 keycode);
 
@@ -1409,10 +1424,8 @@ u32 RGFW_apiKeyToRGFW(u32 keycode) {
 
 RGFWDEF void RGFW_resetKey(void);
 void RGFW_resetKey(void) {
-	size_t len = RGFW_final_key; /*!< last_key == length */
-
 	size_t i; /*!< reset each previous state  */
-	for (i = 0; i < len; i++)
+	for (i = 0; i < RGFW_finalKey; i++)
 		RGFW_keyboard[i].prev = 0;
 }
 
@@ -1421,10 +1434,10 @@ void RGFW_resetKey(void) {
 */
 
 /* gamepad data */
-u8 RGFW_gpPressed[4][18]; /*!< if a key is currently pressed or not (per gamepad) */
-RGFW_point RGFW_gpAxes[4][4]; /*!< if a key is currently pressed or not (per gamepad) */
+u8 RGFW_gamepadPressed[4][18]; /*!< if a key is currently pressed or not (per gamepad) */
+RGFW_point RGFW_gamepadAxes[4][4]; /*!< if a key is currently pressed or not (per gamepad) */
 
-RGFW_gpType RGFW_gamepads_type[4]; /*!< if a key is currently pressed or not (per gamepad) */
+RGFW_gamepadType RGFW_gamepads_type[4]; /*!< if a key is currently pressed or not (per gamepad) */
 i32 RGFW_gamepads[4] = {0, 0, 0, 0}; /*!< limit of 4 gamepads at a time */
 char RGFW_gamepads_name[4][128]; /*!< gamepad names */
 u16 RGFW_gamepadCount = 0; /*!< the actual amount of gamepads */
@@ -1449,8 +1462,8 @@ void RGFW_dndInitfuncEMPTY(RGFW_window* win, RGFW_point point) {RGFW_UNUSED(win)
 void RGFW_windowrefreshfuncEMPTY(RGFW_window* win) {RGFW_UNUSED(win); }
 void RGFW_keyfuncEMPTY(RGFW_window* win, u32 key, u32 mappedKey, char keyName[16], u8 lockState, b8 pressed) {RGFW_UNUSED(win); RGFW_UNUSED(key); RGFW_UNUSED(mappedKey); RGFW_UNUSED(keyName); RGFW_UNUSED(lockState); RGFW_UNUSED(pressed);}
 void RGFW_mousebuttonfuncEMPTY(RGFW_window* win, u8 button, double scroll, b8 pressed) {RGFW_UNUSED(win); RGFW_UNUSED(button); RGFW_UNUSED(scroll); RGFW_UNUSED(pressed);}
-void RGFW_gpButtonfuncEMPTY(RGFW_window* win, u16 gamepad, u8 button, b8 pressed){RGFW_UNUSED(win); RGFW_UNUSED(gamepad); RGFW_UNUSED(button); RGFW_UNUSED(pressed); }
-void RGFW_gpAxisfuncEMPTY(RGFW_window* win, u16 gamepad, RGFW_point axis[2], u8 axisesCount, u8 whichAxis){RGFW_UNUSED(win); RGFW_UNUSED(gamepad); RGFW_UNUSED(axis); RGFW_UNUSED(axisesCount); RGFW_UNUSED(whichAxis); }
+void RGFW_gamepadButtonfuncEMPTY(RGFW_window* win, u16 gamepad, u8 button, b8 pressed){RGFW_UNUSED(win); RGFW_UNUSED(gamepad); RGFW_UNUSED(button); RGFW_UNUSED(pressed); }
+void RGFW_gamepadAxisfuncEMPTY(RGFW_window* win, u16 gamepad, RGFW_point axis[2], u8 axisesCount, u8 whichAxis){RGFW_UNUSED(win); RGFW_UNUSED(gamepad); RGFW_UNUSED(axis); RGFW_UNUSED(axisesCount); RGFW_UNUSED(whichAxis); }
 void RGFW_gamepadfuncEMPTY(RGFW_window* win, u16 gamepad, b8 connected) {RGFW_UNUSED(win); RGFW_UNUSED(gamepad); RGFW_UNUSED(connected);}
 
 #ifdef RGFW_ALLOC_DROPFILES
@@ -1470,8 +1483,8 @@ RGFW_dndfunc RGFW_dndCallback = RGFW_dndfuncEMPTY;
 RGFW_dndInitfunc RGFW_dndInitCallback = RGFW_dndInitfuncEMPTY;
 RGFW_keyfunc RGFW_keyCallback = RGFW_keyfuncEMPTY;
 RGFW_mousebuttonfunc RGFW_mouseButtonCallback = RGFW_mousebuttonfuncEMPTY;
-RGFW_gpButtonfunc RGFW_gpButtonCallback = RGFW_gpButtonfuncEMPTY;
-RGFW_gpAxisfunc RGFW_gpAxisCallback = RGFW_gpAxisfuncEMPTY;
+RGFW_gamepadButtonfunc RGFW_gamepadButtonCallback = RGFW_gamepadButtonfuncEMPTY;
+RGFW_gamepadAxisfunc RGFW_gamepadAxisCallback = RGFW_gamepadAxisfuncEMPTY;
 RGFW_gamepadfunc RGFW_gamepadCallback = RGFW_gamepadfuncEMPTY;
 
 void RGFW_window_checkEvents(RGFW_window* win, i32 waitMS) {
@@ -1543,14 +1556,14 @@ RGFW_mousebuttonfunc RGFW_setMouseButtonCallback(RGFW_mousebuttonfunc func) {
     RGFW_mouseButtonCallback = func;
     return prev;
 }
-RGFW_gpButtonfunc RGFW_setgpButtonCallback(RGFW_gpButtonfunc func) {
-    RGFW_gpButtonfunc prev = (RGFW_gpButtonCallback == RGFW_gpButtonfuncEMPTY) ? NULL : RGFW_gpButtonCallback;
-    RGFW_gpButtonCallback = func;
+RGFW_gamepadButtonfunc RGFW_setgpButtonCallback(RGFW_gamepadButtonfunc func) {
+    RGFW_gamepadButtonfunc prev = (RGFW_gamepadButtonCallback == RGFW_gamepadButtonfuncEMPTY) ? NULL : RGFW_gamepadButtonCallback;
+    RGFW_gamepadButtonCallback = func;
     return prev;
 }
-RGFW_gpAxisfunc RGFW_setgpAxisCallback(RGFW_gpAxisfunc func) {
-    RGFW_gpAxisfunc prev = (RGFW_gpAxisCallback == RGFW_gpAxisfuncEMPTY) ? NULL : RGFW_gpAxisCallback;
-    RGFW_gpAxisCallback = func;
+RGFW_gamepadAxisfunc RGFW_setgpAxisCallback(RGFW_gamepadAxisfunc func) {
+    RGFW_gamepadAxisfunc prev = (RGFW_gamepadAxisCallback == RGFW_gamepadAxisfuncEMPTY) ? NULL : RGFW_gamepadAxisCallback;
+    RGFW_gamepadAxisCallback = func;
     return prev;
 }
 RGFW_gamepadfunc RGFW_setGamepadCallback(RGFW_gamepadfunc func) {
@@ -1581,14 +1594,14 @@ void RGFW_setBufferSize(RGFW_area size) {
 }
 
 
-RGFWDEF RGFW_window* RGFW_window_basic_init(RGFW_rect rect, u16 args, siAllocator alloc);
+RGFWDEF RGFW_window RGFW_window_basic_init(RGFW_rect rect, u16 args);
 
 /* do a basic initialization for RGFW_window, this is to standard it for each OS */
-RGFW_window* RGFW_window_basic_init(RGFW_rect rect, u16 args, siAllocator alloc) {
+RGFW_window RGFW_window_basic_init(RGFW_rect rect, u16 args) {
 	SI_ASSERT_NOT_NEG(rect.width);
 	SI_ASSERT_NOT_NEG(rect.height);
 
-	RGFW_window* win = si_allocItem(alloc, RGFW_window);
+	RGFW_window win = {0};
 
 	/* clear out dnd info */
 #ifdef RGFW_ALLOC_DROPFILES
@@ -1602,10 +1615,10 @@ RGFW_window* RGFW_window_basic_init(RGFW_rect rect, u16 args, siAllocator alloc)
 	#ifndef RGFW_X11
 		RGFW_area screenR = RGFW_getScreenSize();
 	#else
-		win->src.display = XOpenDisplay(NULL);
-		SI_ASSERT_NOT_NIL(win->src.display);
+		win.src.display = XOpenDisplay(NULL);
+		SI_ASSERT_NOT_NIL(win.src.display);
 
-		Screen* scrn = DefaultScreenOfDisplay(win->src.display);
+		Screen* scrn = DefaultScreenOfDisplay(win.src.display);
 		RGFW_area screenR = RGFW_AREA(scrn->width, scrn->height);
 	#endif
 
@@ -1613,12 +1626,8 @@ RGFW_window* RGFW_window_basic_init(RGFW_rect rect, u16 args, siAllocator alloc)
 	if (args & RGFW_FULLSCREEN)
 		rect = RGFW_RECT(0, 0, screenR.width, screenR.height);
 
-	win->alloc = alloc;
-	win->r = rect;
-	win->event.inFocus = 1;
-	win->event.droppedFilesCount = 0;
-	win->_winArgs = 0;
-	win->event.lockState = 0;
+	win.r = rect;
+	win.event.inFocus = 1;
 
 	return win;
 }
@@ -1644,9 +1653,9 @@ RGFWDEF void RGFW_window_cocoaSetLayer(RGFW_window* win, void* layer);
 RGFWDEF void* RGFW_cocoaGetLayer(void);
 #endif
 
-char* RGFW_className = NULL;
-void RGFW_setClassName(const char* name) {
-	RGFW_className = (char*)name;
+siString RGFW_className;
+void RGFW_setClassName(siString name) {
+	RGFW_className = name;
 }
 
 void RGFW_clipboardFree(char* str) { /* RGFW_FREE(str); */ }
@@ -1799,14 +1808,14 @@ u32 RGFW_window_checkFPS(RGFW_window* win, u32 fpsCap) {
 	return output_fps;
 }
 
-u32 RGFW_isPressedGP(RGFW_window* win, u8 c, u8 button) {
+u32 RGFW_isPressedgamepad(RGFW_window* win, u8 c, u8 button) {
 	RGFW_UNUSED(win);
-	return RGFW_gpPressed[c][button];
+	return RGFW_gamepadPressed[c][button];
 }
 
 RGFW_point RGFW_getGamepadAxis(RGFW_window* win, u16 controller, u16 whichAxis) {
 	RGFW_UNUSED(win);
-	return RGFW_gpAxes[controller][whichAxis];
+	return RGFW_gamepadAxes[controller][whichAxis];
 }
 char* RGFW_getGamepadName(RGFW_window* win, u16 controller) {
 	RGFW_UNUSED(win);
@@ -1818,7 +1827,7 @@ size_t RGFW_getGamepadCount(RGFW_window* win) {
 	return RGFW_gamepadCount;
 }
 
-RGFW_gpType RGFW_getGamepadType(RGFW_window* win, u16 controller) {
+RGFW_gamepadType RGFW_getGamepadType(RGFW_window* win, u16 controller) {
 	RGFW_UNUSED(win);
 	return RGFW_gamepads_type[controller];
 }
@@ -1908,6 +1917,9 @@ siString SGFW_errorName(SGFW_error error) {
         SI_STRC("SGFW_errorXorgCursor"),
         SI_STRC("SGFW_errorXorgMatch"),
         SI_STRC("SGFW_errorXorgPixmap"),
+
+		SI_STRC("SGFW_errorGlxConfig"),
+		SI_STRC("SGFW_errorGlxVisual"),
 		#endif
     };
 
@@ -1931,7 +1943,6 @@ SGFW_error SGFW_errorGet(i32 error) {
 	}
 #endif
 
-	si_printf("error: %i\n", error);
 	return SGFW_errorPlatform;
 }
 
@@ -1962,7 +1973,7 @@ SGFW_error SGFW_errorGet(i32 error) {
 /* EGL, normal OpenGL only */
 #if !defined(RGFW_OSMESA)
 	i32 RGFW_majorVersion = 0, RGFW_minorVersion = 0;
-	b8 RGFW_profile = RGFW_GL_CORE;
+	b8 RGFW_profile = RGFW_glCore;
 
 	#ifndef RGFW_EGL
 	i32 RGFW_STENCIL = 8, RGFW_SAMPLES = 4, RGFW_STEREO = 0, RGFW_AUX_BUFFERS = 0, RGFW_DOUBLE_BUFFER = 1;
@@ -2241,7 +2252,7 @@ i32* RGFW_initFormatAttribs(b32 useSoftware) {
 			RGFW_GL_ADD_ATTRIB(EGL_CONTEXT_MAJOR_VERSION, RGFW_majorVersion);
 			RGFW_GL_ADD_ATTRIB(EGL_CONTEXT_MINOR_VERSION, RGFW_minorVersion);
 
-			if (RGFW_profile == RGFW_GL_CORE) {
+			if (RGFW_profile == RGFW_glCore) {
 				RGFW_GL_ADD_ATTRIB(EGL_CONTEXT_OPENGL_PROFILE_MASK, EGL_CONTEXT_OPENGL_CORE_PROFILE_BIT);
 			}
 			else {
@@ -2369,9 +2380,9 @@ This is where OS specific stuff starts
 
 				u8 j;
 				for (j = 0; j < 16; j++)
-					RGFW_gpPressed[i][j] = 0;
+					RGFW_gamepadPressed[i][j] = 0;
 
-				win->event.type = RGFW_gpConnected;
+				win->event.type = RGFW_gamepadConnected;
 
 				RGFW_gamepads_type[i] = RGFW_UNKNOWN;
 				if (strstr(RGFW_gamepads_name[i], "Microsoft") || strstr(RGFW_gamepads_name[i], "X-Box"))
@@ -2405,21 +2416,22 @@ This is where OS specific stuff starts
 							if (RGFW_gamepads_type[i] == RGFW_MICROSOFT)
 								typeIndex = 1;
 
-							win->event.type = e.value ? RGFW_gpButtonPressed : RGFW_gpButtonReleased;
-							u8 RGFW_linux2RGFW[2][RGFW_GP_R3 + 8] = {{ /* ps */
-									RGFW_GP_A, RGFW_GP_B, RGFW_GP_Y, RGFW_GP_X, RGFW_GP_L1, RGFW_GP_R1, RGFW_GP_L2, RGFW_GP_R2,
-									RGFW_GP_SELECT, RGFW_GP_START, RGFW_GP_HOME, RGFW_GP_L3, RGFW_GP_R3, RGFW_GP_UP, RGFW_GP_DOWN, RGFW_GP_LEFT, RGFW_GP_RIGHT,
+							win->event.type = e.value ? RGFW_gamepadButtonPressed : RGFW_gamepadButtonReleased;
+							u8 RGFW_linux2RGFW[2][RGFW_gamepadR3 + 8] = {{ /* ps */
+									RGFW_gamepadA, RGFW_gamepadB, RGFW_gamepadY, RGFW_gamepadX, RGFW_gamepadL1, RGFW_gamepadR1, RGFW_gamepadL2, RGFW_gamepadR2,
+									RGFW_gamepadSelect, RGFW_gamepadStart, RGFW_gamepadHome, RGFW_gamepadL3, RGFW_gamepadR3, RGFW_gamepadUp, RGFW_gamepadDown, RGFW_gamepadLeft, RGFW_gamepadRight,
 								},{ /* xbox */
-									RGFW_GP_A, RGFW_GP_B, RGFW_GP_X, RGFW_GP_Y, RGFW_GP_L1, RGFW_GP_R1, RGFW_GP_SELECT, RGFW_GP_START,
-									RGFW_GP_HOME, RGFW_GP_L3, RGFW_GP_R3, 255, 255, RGFW_GP_UP, RGFW_GP_DOWN, RGFW_GP_LEFT, RGFW_GP_RIGHT
+									RGFW_gamepadA, RGFW_gamepadB, RGFW_gamepadX, RGFW_gamepadY, RGFW_gamepadL1, RGFW_gamepadR1, RGFW_gamepadSelect, RGFW_gamepadStart,
+									RGFW_gamepadHome, RGFW_gamepadL3, RGFW_gamepadR3, 255, 255, RGFW_gamepadUp, RGFW_gamepadDown, RGFW_gamepadLeft, RGFW_gamepadRight
 							}};
+
 
 							win->event.button = RGFW_linux2RGFW[typeIndex][e.number];
 							win->event.gamepad = i;
 							if (win->event.button == 255) break;
 
-							RGFW_gpPressed[i][win->event.button] = e.value;
-							RGFW_gpButtonCallback(win, i, win->event.button, e.value);
+							RGFW_gamepadPressed[i][win->event.button] = e.value;
+							RGFW_gamepadButtonCallback(win, i, win->event.button, e.value);
 
 							return 1;
 						}
@@ -2432,17 +2444,17 @@ This is where OS specific stuff starts
 
 							if (axis < 3) {
 								if (e.number == 0 || e.number == 3)
-									RGFW_gpAxes[i][axis].x = (e.value / 32767.0f) * 100;
+									RGFW_gamepadAxes[i][axis].x = (e.value / 32767.0f) * 100;
 								else if (e.number == 1 || e.number == 4) {
-									RGFW_gpAxes[i][axis].y = (e.value / 32767.0f) * 100;
+									RGFW_gamepadAxes[i][axis].y = (e.value / 32767.0f) * 100;
 								}
 							}
 
-							win->event.axis[axis] = RGFW_gpAxes[i][axis];
-							win->event.type = RGFW_gpAxisMove;
+							win->event.axis[axis] = RGFW_gamepadAxes[i][axis];
+							win->event.type = RGFW_gamepadAxisMove;
 							win->event.gamepad = i;
 							win->event.whichAxis = axis;
-							RGFW_gpAxisCallback(win, i, win->event.axis, win->event.axisesCount, win->event.whichAxis);
+							RGFW_gamepadAxisCallback(win, i, win->event.axis, win->event.axisesCount, win->event.whichAxis);
 							return 1;
 						}
 						default: break;
@@ -2453,7 +2465,7 @@ This is where OS specific stuff starts
 					close(RGFW_gamepads[i]);
 					RGFW_gamepads[i] = 0;
 
-					win->event.type = RGFW_gpDisconnected;
+					win->event.type = RGFW_gamepadDisconnected;
 					win->event.gamepad = i;
 					RGFW_gamepadCallback(win, i, 0);
 					return 1;
@@ -2643,7 +2655,7 @@ void RGFW_captureCursor(RGFW_window* win, RGFW_rect r) {
 	#define RGFW__LIBXI "libXi.so.6"
 #endif
 
-RGFW_window* RGFW_createWindow(siString name, RGFW_rect rect, u16 args, siAllocator alloc) {
+siError RGFW_createWindow(siString name, RGFW_rect rect, u16 args, RGFW_window* out) {
 	#if !defined(RGFW_NO_X11_CURSOR) && !defined(RGFW_NO_X11_CURSOR_PRELOAD)
 		if (X11Cursorhandle == NULL) {
 			X11Cursorhandle = si_dllLoad(RGFW__LIBXCURSOR);
@@ -2665,7 +2677,9 @@ RGFW_window* RGFW_createWindow(siString name, RGFW_rect rect, u16 args, siAlloca
 	if (args & RGFW_OPENGL_SOFTWARE)
 		si_envVarSet(SI_STR("LIBGL_ALWAYS_SOFTWARE"), SI_STR("1"));
 
-	RGFW_window* win = RGFW_window_basic_init(rect, args, alloc);
+	RGFW_window* win = out;
+	*win = RGFW_window_basic_init(rect, args);
+
 	i64 event_mask = KeyPressMask | KeyReleaseMask | ButtonPressMask | ButtonReleaseMask
 		| PointerMotionMask | StructureNotifyMask | FocusChangeMask | LeaveWindowMask
 		| EnterWindowMask | ExposureMask;
@@ -2676,14 +2690,9 @@ RGFW_window* RGFW_createWindow(siString name, RGFW_rect rect, u16 args, siAlloca
 		GLXFBConfig* fbc = glXChooseFBConfig(
 			win->src.display, DefaultScreen(win->src.display), visual_attribs, &fbcount
 		);
+		SGFW_CHECK_EX(fbcount == 0, SGFW_errorGlxConfig, XFree(fbc); return SI_ERROR_RES);
 
 		i32 best_fbc = -1;
-
-		if (fbcount == 0) {
-			printf("Failed to find any valid GLX visual configs\n");
-			return NULL;
-		}
-
 		for_range (i, 0, fbcount) {
 			XVisualInfo* vi = glXGetVisualFromFBConfig(win->src.display, fbc[i]);
 			SI_STOPIF(vi == NULL, continue);
@@ -2698,11 +2707,7 @@ RGFW_window* RGFW_createWindow(siString name, RGFW_rect rect, u16 args, siAlloca
 				best_fbc = i;
 			}
 		}
-
-		if (best_fbc == -1) {
-			printf("Failed to get a valid GLX visual\n");
-			return NULL;
-		}
+		SGFW_CHECK_EX(best_fbc == -1, SGFW_errorGlxVisual, XFree(fbc); return SI_ERROR_RES);
 
 		GLXFBConfig bestFbc = fbc[best_fbc];
 		XVisualInfo* vi = glXGetVisualFromFBConfig(win->src.display, bestFbc);
@@ -2740,55 +2745,53 @@ RGFW_window* RGFW_createWindow(siString name, RGFW_rect rect, u16 args, siAlloca
 	XFree(vi);
 	#endif
 
-	// In your .desktop app, if you set the property
-	// StartupWMClass=RGFW that will assoicate the launcher icon
-	// with your application - robrohan
 
-	/* TODO(EimaMei): Check if the string needs to stay alive. */
 
-#if 0
-	if (RGFW_className == NULL)
-		RGFW_className = (char*)nil;
-	SI_PANIC_MSG("TODO: Fix this later");
+	char* title = si_stringToOsStr(name, SI_BUF_STACK(256));
+	{
+		// In your .desktop app, if you set the property
+		// StartupWMClass=RGFW that will assoicate the launcher icon
+		// with your application - robrohan
+		char* class = (RGFW_className.data == nil)
+			? title
+			: si_stringToOsStr(RGFW_className, SI_BUF_STACK(256));
 
-	XClassHint* hint = XAllocClassHint();
-	assert(hint != NULL);
-	hint->res_class = (char*)nil;
-	SI_PANIC_MSG("TODO: Fix this later");
-	hint->res_name = (char*)nil; // just use the window name as the app name
-	XSetClassHint((Display*) win->src.display, win->src.window, hint);
-	XFree(hint);
-#endif
+		XClassHint* hint = XAllocClassHint();
+		if (hint != NULL) {
+			hint->res_class = class;
+			hint->res_name = title;
+			XSetClassHint(win->src.display, win->src.window, hint);
+			XFree(hint);
+		}
+	}
 
 	if ((args & RGFW_NO_INIT_API) == 0) {
-		#ifdef RGFW_OPENGL /* This is the second part of setting up opengl. This is where we ask OpenGL for a specific version. */
-			i32 context_attribs[7] = {
-				GLX_CONTEXT_PROFILE_MASK_ARB,
-				(RGFW_profile) ? GLX_CONTEXT_CORE_PROFILE_BIT_ARB : GLX_CONTEXT_COMPATIBILITY_PROFILE_BIT_ARB,
-				0, 0, 0, 0, 0
-			};
+	#ifdef RGFW_OPENGL /* This is the second part of setting up opengl. This is where we ask OpenGL for a specific version. */
+		i32 context_attribs[7] = {
+			GLX_CONTEXT_PROFILE_MASK_ARB,
+			(RGFW_profile) ? GLX_CONTEXT_CORE_PROFILE_BIT_ARB : GLX_CONTEXT_COMPATIBILITY_PROFILE_BIT_ARB,
+			0, 0, 0, 0, 0
+		};
 
-			if (RGFW_majorVersion || RGFW_minorVersion) {
-				context_attribs[2] = GLX_CONTEXT_MAJOR_VERSION_ARB;
-				context_attribs[3] = RGFW_majorVersion;
-				context_attribs[4] = GLX_CONTEXT_MINOR_VERSION_ARB;
-				context_attribs[5] = RGFW_minorVersion;
-			}
+		if (RGFW_majorVersion || RGFW_minorVersion) {
+			context_attribs[2] = GLX_CONTEXT_MAJOR_VERSION_ARB;
+			context_attribs[3] = RGFW_majorVersion;
+			context_attribs[4] = GLX_CONTEXT_MINOR_VERSION_ARB;
+			context_attribs[5] = RGFW_minorVersion;
+		}
 
-			glXCreateContextAttribsARBProc glXCreateContextAttribsARB;
-			glXCreateContextAttribsARB = si_transmute(
-				glXCreateContextAttribsARBProc,
-				glXGetProcAddressARB((u8*)"glXCreateContextAttribsARB"),
-				__GLXextFuncPtr
-			);
+		glXCreateContextAttribsARBProc glXCreateContextAttribsARB;
+		glXCreateContextAttribsARB = si_transmute(
+			glXCreateContextAttribsARBProc,
+			glXGetProcAddressARB((u8*)"glXCreateContextAttribsARB"),
+			__GLXextFuncPtr
+		);
 
-			GLXContext ctx = NULL;
-
-			if (RGFW_root != NULL)
-				ctx = RGFW_root->src.ctx;
-
-			win->src.ctx = glXCreateContextAttribsARB(win->src.display, bestFbc, ctx, True, context_attribs);
-		#endif
+		GLXContext ctx = (RGFW_root != NULL) ? RGFW_root->src.ctx : NULL;
+		win->src.ctx = glXCreateContextAttribsARB(
+			win->src.display, bestFbc, ctx, True, context_attribs
+		);
+	#endif
 
 		if (RGFW_root == NULL)
 			RGFW_root = win;
@@ -2839,7 +2842,7 @@ RGFW_window* RGFW_createWindow(siString name, RGFW_rect rect, u16 args, siAlloca
 		glXMakeCurrent(win->src.display, win->src.window, win->src.ctx);
 	#endif
 
-	XStoreName(win->src.display, win->src.window, "TODO FIX THIS");
+	XStoreName(win->src.display, win->src.window, title);
 	XMapWindow(win->src.display, win->src.window);
 	XMoveWindow(win->src.display, win->src.window, win->r.x, win->r.y);
 
@@ -2878,14 +2881,14 @@ RGFW_window* RGFW_createWindow(siString name, RGFW_rect rect, u16 args, siAlloca
 	#endif
 
 	RGFW_window_setMouseDefault(win);
-
-	RGFW_windowsOpen++;
+	win->initialized = true;
+	RGFW_windowsOpen += 1;
 
 	#ifdef RGFW_DEBUG
 	printf("RGFW INFO: a window with a rect of {%i, %i, %i, %i} \n", win->r.x, win->r.y, win->r.w, win->r.h);
 	#endif
 
-	return win; /*return newly created window*/
+	return SI_ERROR_NIL;
 }
 
 #undef RGFW__LIBXCURSOR
@@ -3632,7 +3635,7 @@ b32 RGFW_window_setMouse(RGFW_window* win, u8* icon, RGFW_area a, i32 channels) 
 	}
 
 	void RGFW_window_setMouseDefault(RGFW_window* win) {
-		RGFW_window_setMouseStandard(win, RGFW_MOUSE_ARROW);
+		RGFW_window_setMouseStandard(win, RGFW_mouseArrow);
 	}
 
 	void RGFW_window_setMouseStandard(RGFW_window* win, u8 mouse) {
@@ -4206,9 +4209,8 @@ void RGFW_window_close(RGFW_window* win) {
 	/* set cleared display / window to NULL for error checking */
 	win->src.display = 0;
 	win->src.window = 0;
+	win->initialized = false;
 	RGFW_windowsOpen -= 1;
-
-	si_free(win->alloc, win);
 }
 
 
@@ -5723,7 +5725,7 @@ RGFW_UNUSED(win); /*!< if buffer rendering is not being used */
 			u32 index = 0;
 			i32 attribs[40];
 
-			if (RGFW_profile == RGFW_GL_CORE) {
+			if (RGFW_profile == RGFW_glCore) {
 				SET_ATTRIB(WGL_CONTEXT_PROFILE_MASK_ARB, WGL_CONTEXT_CORE_PROFILE_BIT_ARB);
 			}
 			else {
@@ -5912,12 +5914,12 @@ RGFW_UNUSED(win); /*!< if buffer rendering is not being used */
 				if (keystroke.VirtualKey > VK_PAD_RTHUMB_PRESS)
 					continue;
 
-				//gp + 1 = RGFW_gpButtonReleased
-				e->type = RGFW_gpButtonPressed + !(keystroke.Flags & XINPUT_KEYSTROKE_KEYDOWN);
+				//gp + 1 = RGFW_gamepadButtonReleased
+				e->type = RGFW_gamepadButtonPressed + !(keystroke.Flags & XINPUT_KEYSTROKE_KEYDOWN);
 				e->button = RGFW_xinput2RGFW[keystroke.VirtualKey - 0x5800];
-				RGFW_gpPressed[i][e->button] = (keystroke.Flags & XINPUT_KEYSTROKE_KEYDOWN);
+				RGFW_gamepadPressed[i][e->button] = (keystroke.Flags & XINPUT_KEYSTROKE_KEYDOWN);
 
-				RGFW_gpButtonCallback(win, i, e->button, e->type == RGFW_gpButtonPressed);
+				RGFW_gamepadButtonCallback(win, i, e->button, e->type == RGFW_gamepadButtonPressed);
 				return 1;
 			}
 
@@ -5931,7 +5933,7 @@ RGFW_UNUSED(win); /*!< if buffer rendering is not being used */
 				RGFW_gamepads[i] = 0;
 				RGFW_gamepadCount--;
 
-				win->event.type = RGFW_gpDisconnected;
+				win->event.type = RGFW_gamepadDisconnected;
 				win->event.gamepad = i;
 				RGFW_gamepadCallback(win, i, 0);
 				return 1;
@@ -5944,7 +5946,7 @@ RGFW_UNUSED(win); /*!< if buffer rendering is not being used */
 				char str[] = "Microsoft X-Box (XInput device)";
 				memcpy(RGFW_gamepads_name[i], str, sizeof(str));
 				RGFW_gamepads_name[i][sizeof(RGFW_gamepads_name[i]) - 1] = '\0';
-				win->event.type = RGFW_gpConnected;
+				win->event.type = RGFW_gamepadConnected;
 				win->event.gamepad = i;
 				RGFW_gamepads_type[i] = RGFW_MICROSOFT;
 
@@ -5979,21 +5981,21 @@ RGFW_UNUSED(win); /*!< if buffer rendering is not being used */
 			if (axis1.x != e->axis[0].x || axis1.y != e->axis[0].y){
 				win->event.whichAxis = 0;
 
-				e->type = RGFW_gpAxisMove;
+				e->type = RGFW_gamepadAxisMove;
 				e->axis[0] = axis1;
-				RGFW_gpAxes[i][0] = e->axis[0];
+				RGFW_gamepadAxes[i][0] = e->axis[0];
 
-				RGFW_gpAxisCallback(win, e->gamepad, e->axis, e->axisesCount, e->whichAxis);
+				RGFW_gamepadAxisCallback(win, e->gamepad, e->axis, e->axisesCount, e->whichAxis);
 				return 1;
 			}
 
 			if (axis2.x != e->axis[1].x || axis2.y != e->axis[1].y) {
 				win->event.whichAxis = 1;
-				e->type = RGFW_gpAxisMove;
+				e->type = RGFW_gamepadAxisMove;
 				e->axis[1] = axis2;
-				RGFW_gpAxes[i][1] = e->axis[1];
+				RGFW_gamepadAxes[i][1] = e->axis[1];
 
-				RGFW_gpAxisCallback(win, e->gamepad, e->axis, e->axisesCount, e->whichAxis);
+				RGFW_gamepadAxisCallback(win, e->gamepad, e->axis, e->axisesCount, e->whichAxis);
 				return 1;
 			}
 		}
@@ -7500,14 +7502,14 @@ RGFW_UNUSED(win); /*!< if buffer rendering is not being used */
 		return -1;
 	}
 
-	#define RGFW_gpEventQueueMAX 11
-	RGFW_Event RGFW_gpEventQueue[RGFW_gpEventQueueMAX];
-	size_t RGFW_gpEventQueueCount = 0;
+	#define RGFW_gamepadEventQueueMAX 11
+	RGFW_Event RGFW_gamepadEventQueue[RGFW_gamepadEventQueueMAX];
+	size_t RGFW_gamepadEventQueueCount = 0;
 
 	void RGFW__osxInputValueChangedCallback(void *context, IOReturn result, void *sender, IOHIDValueRef value) {
 		RGFW_UNUSED(context); RGFW_UNUSED(result); RGFW_UNUSED(sender);
 
-        if (RGFW_gpEventQueueCount >= RGFW_gpEventQueueMAX - 1)
+        if (RGFW_gamepadEventQueueCount >= RGFW_gamepadEventQueueMAX - 1)
             return;
 
 		IOHIDElementRef element = IOHIDValueGetElement(value);
@@ -7537,14 +7539,14 @@ RGFW_UNUSED(win); /*!< if buffer rendering is not being used */
 				if (usage < sizeof(RGFW_osx2RGFW))
 					button = RGFW_osx2RGFW[usage];
 
-				RGFW_gpButtonCallback(RGFW_root, index, button, intValue);
-				RGFW_gpPressed[index][button] = intValue;
-				event.type = intValue ? RGFW_gpButtonPressed: RGFW_gpButtonReleased;
+				RGFW_gamepadButtonCallback(RGFW_root, index, button, intValue);
+				RGFW_gamepadPressed[index][button] = intValue;
+				event.type = intValue ? RGFW_gamepadButtonPressed: RGFW_gamepadButtonReleased;
 				event.button = button;
 				event.gamepad = index;
 
-				RGFW_gpEventQueue[RGFW_gpEventQueueCount] = event;
-				RGFW_gpEventQueueCount++;
+				RGFW_gamepadEventQueue[RGFW_gamepadEventQueueCount] = event;
+				RGFW_gamepadEventQueueCount++;
 				break;
 			}
 			case kHIDPage_GenericDesktop: {
@@ -7558,23 +7560,23 @@ RGFW_UNUSED(win); /*!< if buffer rendering is not being used */
 				i8 value = (i8)(-100.0 + ((intValue - logicalMin) * 200.0) / (logicalMax - logicalMin));
 
 				switch (usage) {
-					case kHIDUsage_GD_X: RGFW_gpAxes[index][0].x = value; event.whichAxis = 0; break;
-					case kHIDUsage_GD_Y: RGFW_gpAxes[index][0].y = value; event.whichAxis = 0; break;
-					case kHIDUsage_GD_Z: RGFW_gpAxes[index][1].x = value; event.whichAxis = 1; break;
-					case kHIDUsage_GD_Rz: RGFW_gpAxes[index][1].y = value; event.whichAxis = 1; break;
+					case kHIDUsage_GD_X: RGFW_gamepadAxes[index][0].x = value; event.whichAxis = 0; break;
+					case kHIDUsage_GD_Y: RGFW_gamepadAxes[index][0].y = value; event.whichAxis = 0; break;
+					case kHIDUsage_GD_Z: RGFW_gamepadAxes[index][1].x = value; event.whichAxis = 1; break;
+					case kHIDUsage_GD_Rz: RGFW_gamepadAxes[index][1].y = value; event.whichAxis = 1; break;
 					default: return;
 				}
 
-                event.type = RGFW_gpAxisMove;
+                event.type = RGFW_gamepadAxisMove;
 				event.gamepad = index;
 
-				event.axis[0] = RGFW_gpAxes[index][0];
-				event.axis[1] = RGFW_gpAxes[index][1];
+				event.axis[0] = RGFW_gamepadAxes[index][0];
+				event.axis[1] = RGFW_gamepadAxes[index][1];
 
-				RGFW_gpEventQueue[RGFW_gpEventQueueCount] = event;
-				RGFW_gpEventQueueCount++;
+				RGFW_gamepadEventQueue[RGFW_gamepadEventQueueCount] = event;
+				RGFW_gamepadEventQueueCount++;
 
-				RGFW_gpAxisCallback(RGFW_root, index, event.axis, 2, event.whichAxis);
+				RGFW_gamepadAxisCallback(RGFW_root, index, event.axis, 2, event.whichAxis);
 			}
 		}
 	}
@@ -7614,10 +7616,10 @@ RGFW_UNUSED(win); /*!< if buffer rendering is not being used */
 			RGFW_gamepadCount++;
 
 			RGFW_Event ev;
-			ev.type = RGFW_gpConnected;
+			ev.type = RGFW_gamepadConnected;
 			ev.gamepad = i;
-			RGFW_gpEventQueue[RGFW_gpEventQueueCount] = ev;
-			RGFW_gpEventQueueCount++;
+			RGFW_gamepadEventQueue[RGFW_gamepadEventQueueCount] = ev;
+			RGFW_gamepadEventQueueCount++;
 			RGFW_gamepadCallback(RGFW_root, i, 1);
 			break;
 		}
@@ -7639,10 +7641,10 @@ RGFW_UNUSED(win); /*!< if buffer rendering is not being used */
 			RGFW_osxControllers[index] = NULL;
 
 		RGFW_Event ev;
-		ev.type = RGFW_gpDisconnected;
+		ev.type = RGFW_gamepadDisconnected;
 		ev.gamepad = index;
-		RGFW_gpEventQueue[RGFW_gpEventQueueCount] = ev;
-		RGFW_gpEventQueueCount++;
+		RGFW_gamepadEventQueue[RGFW_gamepadEventQueueCount] = ev;
+		RGFW_gamepadEventQueueCount++;
 		RGFW_gamepadCallback(RGFW_root, index, 0);
 
 		RGFW_gamepadCount--;
@@ -8162,13 +8164,13 @@ RGFW_UNUSED(win); /*!< if buffer rendering is not being used */
 			return &win->event;
 		}
 
-		if (RGFW_gpEventQueueCount && win == RGFW_root) {
+		if (RGFW_gamepadEventQueueCount && win == RGFW_root) {
             static u8 index = 0;
 
             /* check queued events */
-            RGFW_gpEventQueueCount--;
+            RGFW_gamepadEventQueueCount--;
 
-            RGFW_Event ev = RGFW_gpEventQueue[index];
+            RGFW_Event ev = RGFW_gamepadEventQueue[index];
             win->event.type = ev.type;
             win->event.gamepad = ev.gamepad;
             win->event.button = ev.button;
@@ -8176,7 +8178,7 @@ RGFW_UNUSED(win); /*!< if buffer rendering is not being used */
             for (size_t i = 0; i < 4; i++)
                 win->event.axis[i] = ev.axis[i];
 
-            if (RGFW_gpEventQueueCount) index++;
+            if (RGFW_gamepadEventQueueCount) index++;
             else index = 0;
 
 			((void(*)(id, SEL))objc_msgSend)(NSApp, sel_registerName("updateWindows"));
@@ -9059,10 +9061,10 @@ EM_BOOL Emscripten_on_gamepad(int eventType, const EmscriptenGamepadEvent *gamep
 			RGFW_gamepads_type[i] = RGFW_NINTENDO;
 
 		RGFW_gamepadCount++;
-		RGFW_events[RGFW_eventLen].type = RGFW_gpConnected;
+		RGFW_events[RGFW_eventLen].type = RGFW_gamepadConnected;
 	} else {
 		RGFW_gamepadCount--;
-		RGFW_events[RGFW_eventLen].type = RGFW_gpDisconnected;
+		RGFW_events[RGFW_eventLen].type = RGFW_gamepadDisconnected;
 	}
 
 	RGFW_events[RGFW_eventLen].gamepad = gamepadEvent->index;
@@ -9465,36 +9467,36 @@ RGFW_Event* RGFW_window_checkEvent(RGFW_window* win) {
 			if (button == 404)
 				continue;
 
-			if (RGFW_gpPressed[i][button] != gamepadState.digitalButton[j]) {
+			if (RGFW_gamepadPressed[i][button] != gamepadState.digitalButton[j]) {
 				if (gamepadState.digitalButton[j])
-					win->event.type = RGFW_gpButtonPressed;
+					win->event.type = RGFW_gamepadButtonPressed;
 				else
-					win->event.type = RGFW_gpButtonReleased;
+					win->event.type = RGFW_gamepadButtonReleased;
 
 				win->event.gamepad = i;
 				win->event.button = map[j];
-				RGFW_gpPressed[i][button] = gamepadState.digitalButton[j];
+				RGFW_gamepadPressed[i][button] = gamepadState.digitalButton[j];
 
-				RGFW_gpButtonCallback(win, win->event.gamepad, win->event.button, gamepadState.digitalButton[j]);
+				RGFW_gamepadButtonCallback(win, win->event.gamepad, win->event.button, gamepadState.digitalButton[j]);
 				return &win->event;
 			}
 		}
 
 		for (int j = 0; (j < gamepadState.numAxes) && (j < 4); j += 2) {
 			win->event.axisesCount = gamepadState.numAxes / 2;
-			if (RGFW_gpAxes[i][(size_t)(j / 2)].x != (i8)(gamepadState.axis[j] * 100.0f) ||
-				RGFW_gpAxes[i][(size_t)(j / 2)].y != (i8)(gamepadState.axis[j + 1] * 100.0f)
+			if (RGFW_gamepadAxes[i][(size_t)(j / 2)].x != (i8)(gamepadState.axis[j] * 100.0f) ||
+				RGFW_gamepadAxes[i][(size_t)(j / 2)].y != (i8)(gamepadState.axis[j + 1] * 100.0f)
 			) {
 
-				RGFW_gpAxes[i][(size_t)(j / 2)].x = (i8)(gamepadState.axis[j] * 100.0f);
-				RGFW_gpAxes[i][(size_t)(j / 2)].y = (i8)(gamepadState.axis[j + 1] * 100.0f);
-				win->event.axis[(size_t)(j / 2)] = RGFW_gpAxes[i][(size_t)(j / 2)];
+				RGFW_gamepadAxes[i][(size_t)(j / 2)].x = (i8)(gamepadState.axis[j] * 100.0f);
+				RGFW_gamepadAxes[i][(size_t)(j / 2)].y = (i8)(gamepadState.axis[j + 1] * 100.0f);
+				win->event.axis[(size_t)(j / 2)] = RGFW_gamepadAxes[i][(size_t)(j / 2)];
 
-				win->event.type = RGFW_gpAxisMove;
+				win->event.type = RGFW_gamepadAxisMove;
 				win->event.gamepad = i;
 				win->event.whichAxis = j / 2;
 
-				RGFW_gpAxisCallback(win, win->event.gamepad, win->event.axis, win->event.axisesCount, win->event.whichAxis);
+				RGFW_gamepadAxisCallback(win, win->event.gamepad, win->event.axis, win->event.axisesCount, win->event.whichAxis);
 				return &win->event;
 			}
 		}

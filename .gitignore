@@ -12,3 +12,4 @@ lib/
 .DS_Store
 *.obj
 *.json
+real-RGFW.h
