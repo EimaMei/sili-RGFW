@@ -4,6 +4,7 @@ res/
 include/
 lib/
 .cache/
+RGFW/
 
 # Files
 *.exe
@@ -12,4 +13,4 @@ lib/
 .DS_Store
 *.obj
 *.json
-real-RGFW.h
+nuodemės.txt

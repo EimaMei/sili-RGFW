@@ -20,6 +20,7 @@ siColor icon[3 * 3] = {
 };
 b32 mainWindowIsRunning = true,
 	subWindowIsRunning = true;
+RGFW_mouse* mouse;
 
 /* callbacks are another way you can handle events in RGFW */
 void refreshCallback(RGFW_window* win) {
@@ -32,20 +33,22 @@ RGFW_window* win2;
 int main(void) {
 	RGFW_setClassName(SI_STR("RGFW Basic"));
 
-	RGFW_window* win = si_mallocItem(RGFW_window);
-	siError err = RGFW_createWindow(
+	RGFW_window* win = RGFW_createWindow(
 		SI_STR("RGFW Example Window"), RGFW_RECT(500, 500, 500, 500),
-		RGFW_ALLOW_DND | RGFW_CENTER, win
+		RGFW_windowAllowDND | RGFW_windowCenter
 	);
-	SI_ASSERT(err.code == 0);
+	SI_ASSERT_NOT_NIL(win);
 
     RGFW_window_setIcon(win, (u8*)icon, RGFW_AREA(3, 3), 4);
 
     RGFW_setWindowRefreshCallback(refreshCallback);
 
     #if SI_SYSTEM_IS_APPLE
-	RGFW_window* win2 = si_mallocItem(RGFW_window);
-    siError err = RGFW_createWindow(SI_STR("subwindow"), RGFW_RECT(200, 200, 200, 200), win2);
+	/* You can also allocate your own window. */
+	win2 = si_mallocItem(RGFW_window);
+    siError err = RGFW_createWindowPtr(
+		SI_STR("subwindow"), RGFW_RECT(200, 200, 200, 200), 0, win2
+	);
 	SI_ASSERT(err.code == 0);
 	#else
 	siThread subWindowThread;
@@ -60,8 +63,8 @@ int main(void) {
 
     u32 fps = 0;
 
-    while (subWindowIsRunning && !RGFW_isPressed(win, RGFW_Escape)) {
-        #ifdef __APPLE__
+    while (subWindowIsRunning && !RGFW_isPressed(win, RGFW_keyEscape)) {
+        #ifdef SI_SYSTEM_IS_APPLE
         if (win2) RGFW_window_checkEvent(win2);
         #endif
 
@@ -78,21 +81,25 @@ int main(void) {
 				subWindowIsRunning = false;
                 break;
             }
-            if (RGFW_isPressed(win, RGFW_Up)) {
+            if (RGFW_isPressed(win, RGFW_keyUp)) {
                 char* str = RGFW_readClipboard(NULL);
                 si_printf("Pasted : %s\n", str);
                 free(str);
             }
-            else if (RGFW_isPressed(win, RGFW_Down))
+            else if (RGFW_isPressed(win, RGFW_keyDown))
                 RGFW_writeClipboard("DOWN", 4);
-            else if (RGFW_isPressed(win, RGFW_Space))
+            else if (RGFW_isPressed(win, RGFW_keySpace))
                 si_printf("fps : %i\n", fps);
-            else if (RGFW_isPressed(win, RGFW_w))
+            else if (RGFW_isPressed(win, RGFW_keyW))
                 RGFW_window_setMouseDefault(win);
-            else if (RGFW_isPressed(win, RGFW_q))
+            else if (RGFW_isPressed(win, RGFW_keyQ))
                 RGFW_window_showMouse(win, 0);
-            else if (RGFW_isPressed(win, RGFW_t)) {
-                RGFW_window_setMouse(win, icon, RGFW_AREA(3, 3), 4);
+            else if (RGFW_isPressed(win, RGFW_keyT)) {
+				if (mouse == nil) {
+					mouse = RGFW_loadMouse((u8*)icon, RGFW_AREA(3, 3), 4);
+				}
+
+                RGFW_window_setMouse(win, icon);
             }
 
             if (win->event.type == RGFW_dnd) {
@@ -112,9 +119,12 @@ int main(void) {
         fps = RGFW_window_checkFPS(win, 0);
     }
 
-	RGFW_window_close(win);
-	si_mfree(win);
 	mainWindowIsRunning = false;
+	RGFW_window_close(win);
+
+	if (mouse) {
+		RGFW_freeMouse(mouse);
+	}
 }
 
 void drawLoop(RGFW_window *w) {
@@ -137,8 +147,9 @@ void drawLoop(RGFW_window *w) {
 
 rawptr loop2(rawptr data) {
     #if !SI_SYSTEM_IS_APPLE
+	/* You can also allocate your own window. */
 	win2 = si_mallocItem(RGFW_window);
-    siError err = RGFW_createWindow(
+    siError err = RGFW_createWindowPtr(
 		SI_STR("subwindow"), RGFW_RECT(200, 200, 200, 200), 0, win2
 	);
 	SI_ASSERT(err.code == 0);
@@ -176,9 +187,9 @@ rawptr loop2(rawptr data) {
         drawLoop(win);
     }
 
+	subWindowIsRunning = false;
     RGFW_window_close(win);
 	si_mfree(win);
-	subWindowIsRunning = false;
 
 	#if SI_SYSTEM_IS_APPLE
 	win2 = nil;

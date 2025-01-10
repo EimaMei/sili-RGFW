@@ -1591,7 +1591,6 @@ SI_ENUM(i32, siAllocatorFuncEnum) {
 	siAllocatorFunc_GetAvailable,
 };
 
-
 typedef struct siAllocatorDataResize {
 	rawptr src;
 	usize sizeOld, sizeNew;
@@ -6254,22 +6253,24 @@ siUtf8Char si_utf8Encode(i32 codepoint) {
 		return res;
 	}
 	else if (codepoint <= 0x7FF) {
-		res.codepoint[0] = 0xC0 | (u8)(codepoint >> 6);
-		res.codepoint[1] = 0x80 | (u8)(codepoint & 0x3F);
+		res.codepoint[0] = (u8)(0xC0 | (codepoint >> 6));
+		res.codepoint[1] = (u8)(0x80 | (codepoint & 0x3F));
 		res.len = 2;
 	}
 	else if (codepoint <= 0xFFFF) {
-		SI_STOPIF(si_between(i32, codepoint, 0xD800, 0xDFFF), return SI_UNICODE_INVALID_UTF8);
-		res.codepoint[0] = 0xE0 | (u8)(codepoint >> 12);
-		res.codepoint[1] = 0x80 | (u8)((codepoint >> 6) & 0x3F);
-		res.codepoint[2] = 0x80 | (u8)(codepoint & 0x3F);
+		if (si_between(i32, codepoint, 0xD800, 0xDFFF)) {
+			return SI_UNICODE_INVALID_UTF8;
+		}
+		res.codepoint[0] = (u8)(0xE0 | (codepoint >> 12));
+		res.codepoint[1] = (u8)(0x80 | ((codepoint >> 6) & 0x3F));
+		res.codepoint[2] = (u8)(0x80 | (codepoint & 0x3F));
 		res.len = 3;
 	}
 	else if (codepoint <= 0x10FFFF) {
-		res.codepoint[0] = 0xF0 | (u8)(codepoint >> 18);
-		res.codepoint[1] = 0x80 | (u8)((codepoint >> 12) & 0x3F);
-		res.codepoint[2] = 0x80 | (u8)((codepoint >> 6) & 0x3F);
-		res.codepoint[3] = 0x80 | (u8)(codepoint & 0x3F);
+		res.codepoint[0] = (u8)(0xF0 | (codepoint >> 18));
+		res.codepoint[1] = (u8)(0x80 | ((codepoint >> 12) & 0x3F));
+		res.codepoint[2] = (u8)(0x80 | ((codepoint >> 6) & 0x3F));
+		res.codepoint[3] = (u8)(0x80 | (codepoint & 0x3F));
 		res.len = 4;
 	}
 	else return SI_UNICODE_INVALID_UTF8;
@@ -7587,6 +7588,17 @@ siFile* si_fileGetStdFile(siStdFile type) {
 
 			if (IsValidCodePage(CP_UTF8)) {
 				SetConsoleOutputCP(CP_UTF8);
+			}
+
+			#ifndef ENABLE_VIRTUAL_TERMINAL_PROCESSING
+				#define ENABLE_VIRTUAL_TERMINAL_PROCESSING 0x0004
+			#endif
+
+			for_range (i, 1, 2) {
+				DWORD mode;
+				GetConsoleMode((HANDLE)SI_STD_FILE_ARR[i].handle, &mode);
+				mode |= ENABLE_PROCESSED_OUTPUT  | ENABLE_VIRTUAL_TERMINAL_PROCESSING;
+				SetConsoleMode((HANDLE)SI_STD_FILE_ARR[i].handle, mode);
 			}
 		#elif SI_SYSTEM_IS_UNIX || SI_SYSTEM_IS_APPLE || SI_SYSTEM_EMSCRIPTEN
 			SET_STD_FILE(0, 0);
@@ -9189,12 +9201,21 @@ i32 si_cpuClockSpeed(void) {
 	static i32 SI_CPU_FREQ_MHZ = -1;
 	SI_STOPIF(SI_CPU_FREQ_MHZ != -1, return SI_CPU_FREQ_MHZ);
 
+#if SI_SYSTEM_LINUX
+
+#else
+	/* NOTE(EimaMei): We can find an accurate clock speed by waiting a whole second
+	 * and storing the results, however waing a whole second is too long.
+	 *
+	 * We can somewhat mitigate this by only waiting 100 ms, convert it into mHz
+	 * by dividing _integers_ (this specifically "rounds" up the errors), then
+	 * multiply by 10. */
 	u64 begin = si_RDTSC();
 	si_sleep(100);
 	u64 end = si_RDTSC();
 
-	i32 val = si_cast(i32, end - begin) / 100000;
-	SI_CPU_FREQ_MHZ = ((val + 5) / 10) * 10;
+	SI_CPU_FREQ_MHZ = (i32)(end - begin) / SI_CLOCKS_MILI * 10;
+#endif
 
 	return SI_CPU_FREQ_MHZ;
 }
