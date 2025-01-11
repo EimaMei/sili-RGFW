@@ -34,7 +34,7 @@ int main(void) {
 	RGFW_setClassName(SI_STR("RGFW Basic"));
 
 	RGFW_window* win = RGFW_createWindow(
-		SI_STR("RGFW Example Window"), RGFW_RECT(500, 500, 500, 500),
+		SI_STR("Šešios žąsys su šešiais žąsyčiais"), RGFW_RECT(500, 500, 500, 500),
 		RGFW_windowAllowDND | RGFW_windowCenter
 	);
 	SI_ASSERT_NOT_NIL(win);
@@ -81,10 +81,10 @@ int main(void) {
 				subWindowIsRunning = false;
                 break;
             }
-            if (RGFW_isPressed(win, RGFW_keyUp)) {
-                char* str = RGFW_readClipboard(NULL);
-                si_printf("Pasted : %s\n", str);
-                free(str);
+            if (RGFW_isClicked(win, RGFW_keyUp)) {
+                isize len = RGFW_readClipboardLen();
+                siString str = RGFW_readClipboard(SI_BUF_STACK(13));
+                si_printf("Pasted : %S - %zd vs %zd\n", str, str.len, len);
             }
             else if (RGFW_isPressed(win, RGFW_keyDown))
                 RGFW_writeClipboard("DOWN", 4);

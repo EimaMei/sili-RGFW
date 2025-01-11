@@ -3202,9 +3202,12 @@ extern siString* SI_NAMES_AM_PM;
 
 
 /* Reads the current value of the processor’s time-stamp counter.
- * NOTE: Only natively works for AMD64, i386, ARM64 and PPC CPUs. On other CPUs
+ * NOTE: Only natively works for AMD64, i386, ARM64, WASI and PPC CPUs. On other CPUs
  * the function relies on OS functions like 'gettimeofday'. */
 SIDEF u64 si_RDTSC(void);
+/* Reads the current value of the processor’s time-stamp counter and writes the
+ * current processor ID to the pointer. */
+SIDEF u64 si_RDTSCP(i32* proc);
 /* Returns the current clock (in nanoseconds). */
 SIDEF u64 si_clock(void);
 
@@ -8459,6 +8462,76 @@ u64 si_RDTSC(void) {
 }
 
 inline
+u64 si_RDTSCP(i32* proc) {
+	SI_ASSERT_NOT_NIL(proc);
+
+#if SI_COMPILER_CHECK_MIN(MSVC, 12, 0, 0)
+	return __rdtscp((u32*)proc);
+#elif !defined(SI_NO_INLINE_ASM)
+	#if SI_ARCH_I386
+		u64 res;
+		si_asm (".byte 0x0f, 0x31", : "=A" (res));
+		return res;
+
+	#elif SI_ARCH_AMD64
+		u64 res;
+		si_asm(
+			"rdtscp"          SI_ASM_NL
+			"shl rdx, 0x20"   SI_ASM_NL
+			"or rax, rdx",
+			SI_ASM_OUTPUT("=a"(res), "=c"(*proc))
+		);
+		return res;
+
+	#elif SI_ARCH_IS_PPC
+		u32 aux;
+
+		/* TODO(EimaMei): Check if this is even accurate. */
+		si_asm ("mfspr %0, 1023" : "=r"(aux));
+		*proc = (i32)aux;
+
+		return si_RDTSC();
+
+	#elif SI_ARCH_ARM64
+		u64 mpidr;
+
+		/* TODO(EimaMei): Check if this is even accurate. */
+		si_asm ("mrs %0, mpidr_el1" : "=r"(mpidr));
+		*proc = (i32)(mpidr & 0xFF);
+
+		return si_RDTSC();
+
+	#elif SI_SYSTEM_IS_WINDOWS
+		*proc = GetCurrentProcessorNumber();
+		return si_RDTSC();
+
+	#elif SI_SYSTEM_IS_UNIX || SI_SYSTEM_IS_APPLE
+		*proc = sched_getcpu();
+		return si_RDTSC();
+
+	#else
+		*proc = 0;
+		return si_RDTSC();
+
+	#endif
+
+#else
+	#if SI_SYSTEM_IS_WINDOWS
+		*proc = GetCurrentProcessorNumber();
+		return si_RDTSC();
+
+	#elif SI_SYSTEM_IS_UNIX || SI_SYSTEM_IS_APPLE
+		*proc = sched_getcpu();
+		return si_RDTSC();
+	#else
+		*proc = 0;
+		return si_RDTSC();
+	#endif
+#endif /* SI_NO_INLINE_ASM */
+}
+
+
+inline
 u64 si_clock(void) {
 	return si_RDTSC() / (u32)si_cpuClockSpeed() * 1000;
 }
@@ -9201,9 +9274,6 @@ i32 si_cpuClockSpeed(void) {
 	static i32 SI_CPU_FREQ_MHZ = -1;
 	SI_STOPIF(SI_CPU_FREQ_MHZ != -1, return SI_CPU_FREQ_MHZ);
 
-#if SI_SYSTEM_LINUX
-
-#else
 	/* NOTE(EimaMei): We can find an accurate clock speed by waiting a whole second
 	 * and storing the results, however waing a whole second is too long.
 	 *
@@ -9215,7 +9285,6 @@ i32 si_cpuClockSpeed(void) {
 	u64 end = si_RDTSC();
 
 	SI_CPU_FREQ_MHZ = (i32)(end - begin) / SI_CLOCKS_MILI * 10;
-#endif
 
 	return SI_CPU_FREQ_MHZ;
 }
@@ -10165,6 +10234,7 @@ void si_benchmarkLoopsAvgCmpPrint(siBenchmarkInfo info[2], usize range[2]) {
 	const siBenchmarkLimit* elements[2];
 	u64* arrays[2] = {(u64*)info[0].cycles.data, (u64*)info[1].cycles.data};
 	f64 freq = (f64)si_cpuClockSpeed() / 1000.0;
+	si_printf("%f\n", freq);
 
 	isize pad_runs = si_numLen(range[1]);
 	isize pad_cycles[2] = {
