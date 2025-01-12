@@ -3221,7 +3221,7 @@ SIDEF u64 si_timeStampStartEx(void);
 SIDEF void si_timeStampPrintSinceEx(u64 t);
 
 /* Makes the CPU sleep for a certain amount of miliseconds. */
-SIDEF void si_sleep(u32 miliseconds);
+SIDEF void si_sleep(i32 miliseconds);
 
 /* Returns the number of seconds since 1970-01-01 UTC-0. */
 SIDEF i64 si_timeNowUTC(void);
@@ -8564,7 +8564,8 @@ void si_timeStampPrintSinceEx(u64 ts) {
 }
 
 inline
-void si_sleep(u32 miliseconds) {
+void si_sleep(i32 miliseconds) {
+	SI_ASSERT_NOT_NEG(miliseconds);
 	SI_STOPIF(miliseconds == 0, return);
 
 #if SI_SYSTEM_IS_WINDOWS
@@ -8572,8 +8573,8 @@ void si_sleep(u32 miliseconds) {
 
 #elif SI_SYSTEM_IS_UNIX || SI_SYSTEM_IS_APPLE
 	struct timespec ts = {
-		(time_t)miliseconds / 1000,
-		si_cast(time_t, miliseconds % 1000) * SI_CLOCKS_MILI
+		miliseconds / 1000,
+		(miliseconds % 1000) * SI_CLOCKS_MILI
 	};
 	nanosleep(&ts, &ts);
 

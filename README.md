@@ -26,21 +26,27 @@ Current review progress:
         - [x] RGFW_setClassName
         - [x] RGFW_setBufferSize
         - [x] RGFW_getScreenSize
+    - [ ] Monitor:
+        - [ ] RGFW_getMonitors
+        - [ ] RGFW_getPrimaryMonitor
+    - [ ] Mouse:
+        - [ ] RGFW_loadMouse
+        - [ ] RGFW_freeMouse
     - [ ] Window functions:
         - [x] RGFW_createWindow/RGFW_createWindowPtr
-        - [ ] RGFW_window_checkEvent
+        - [x] RGFW_window_checkEvent* (NOTE: DND hasn't been reworked).
         - [ ] RGFW_window_eventWait
         - [ ] RGFW_window_checkEvents
         - [ ] RGFW_stopCheckEvents
         - [ ] RGFW_window_close
-        - [ ] RGFW_window_move
+        - [x] RGFW_window_move
         - [ ] RGFW_window_moveToMonitor
-        - [ ] RGFW_window_resize
-        - [ ] RGFW_window_setMinSize/RGFW_window_setMaxSize
-        - [ ] RGFW_window_maximize/RGFW_window_minimize/RGFW_window_restore
+        - [x] RGFW_window_resize
+        - [x] RGFW_window_setMinSize/RGFW_window_setMaxSize
+        - [x] RGFW_window_maximize/RGFW_window_minimize/RGFW_window_restore
         - [ ] RGFW_window_setBorder
         - [ ] RGFW_window_setDND
-        - [ ] RGFW_window_setMousePassthrough
+        - [x] RGFW_window_setMousePassthrough
         - [x] RGFW_window_setName
         - [x] RGFW_window_setIcon
         - [x] RGFW_window_setMouse
@@ -55,8 +61,12 @@ Current review progress:
         - [ ] RGFW_window_getMousePoint
         - [ ] RGFW_window_showMouse
         - [ ] RGFW_window_moveMouse
-        - [ ] RGFW_window_shouldClose
+        - [x] RGFW_window_shouldClose
         - [ ] RGFW_window_isFullscreen 
         - [ ] RGFW_window_isHidden
         - [ ] RGFW_window_isMinimized
         - [ ] RGFW_window_isMaximized
+    - [ ] Monitor functions:
+        - [ ] RGFW_window_scaleToMonitor
+        - [ ] RGFW_window_getMonitor
+    - [ ] Input functions:

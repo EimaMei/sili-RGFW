@@ -63,7 +63,7 @@ int main(void) {
 
     u32 fps = 0;
 
-    while (subWindowIsRunning && !RGFW_isPressed(win, RGFW_keyEscape)) {
+    while (subWindowIsRunning && !RGFW_isPressed(win, RGFW_escape)) {
         #ifdef SI_SYSTEM_IS_APPLE
         if (win2) RGFW_window_checkEvent(win2);
         #endif
@@ -81,20 +81,21 @@ int main(void) {
 				subWindowIsRunning = false;
                 break;
             }
-            if (RGFW_isClicked(win, RGFW_keyUp)) {
+            if (RGFW_isPressed(win, RGFW_up)) {
                 isize len = RGFW_readClipboardLen();
+				SI_ASSERT(len != -1);
                 siString str = RGFW_readClipboard(SI_BUF_STACK(13));
                 si_printf("Pasted : %S - %zd vs %zd\n", str, str.len, len);
             }
-            else if (RGFW_isPressed(win, RGFW_keyDown))
+            else if (RGFW_isPressed(win, RGFW_down))
                 RGFW_writeClipboard("DOWN", 4);
-            else if (RGFW_isPressed(win, RGFW_keySpace))
+            else if (RGFW_isPressed(win, RGFW_space))
                 si_printf("fps : %i\n", fps);
-            else if (RGFW_isPressed(win, RGFW_keyW))
+            else if (RGFW_isPressed(win, RGFW_w))
                 RGFW_window_setMouseDefault(win);
-            else if (RGFW_isPressed(win, RGFW_keyQ))
+            else if (RGFW_isPressed(win, RGFW_q))
                 RGFW_window_showMouse(win, 0);
-            else if (RGFW_isPressed(win, RGFW_keyT)) {
+            else if (RGFW_isPressed(win, RGFW_t)) {
 				if (mouse == nil) {
 					mouse = RGFW_loadMouse((u8*)icon, RGFW_AREA(3, 3), 4);
 				}
